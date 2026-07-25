@@ -141,3 +141,33 @@ i-Cockpit 美学：深邃近黑蓝底 + 冰蓝荧光主色 + 铬银描边 + 标�
 - **视觉**：主菜单卡片色值改引用 `theme/tokens.ts`（新增 `catSim`/`--cat-sim`），消除硬编码色值；`.panel`/姿态球外圈补铬银倒角层次。
 - **右侧工具栏溢出**（`WaypointToolbar`/`MapToolbar`）改为 `maxHeight: calc(100% - 28px)` + `overflow-y: auto`，小窗口下可滚动到达全部按钮。
 - **模拟飞行界面**现在也挂载航线编辑 UI（`FlightView.tsx`，此前只有"航线飞行"模式能加点画航线）。
+
+## 10. 动效与声音层（未来感 / 科技感改造）
+
+> 运行环境是 Electron（固定 Chromium 130），故直接使用 View Transitions、CSS `@property`
+> 等新特性，**不需要兼容分支或 polyfill**。
+
+- **环形主菜单** `src/components/pages/RingMenu.tsx`：6 个 SVG 环形扇区极坐标排布
+  （`annularSector()` 画环形扇区路径），悬停时扇区沿角平分线外扩 + 分类色辉光 +
+  中心信息盘联动显示该功能详情；外圈有刻度环与缓慢旋转的扫描弧，呼应姿态球罗盘环。
+  支持方向键导航 / Enter 选中 / Esc 取消。
+  - **入场与悬停用两层 `<g>` 分离**：外层跑 WAAPI 交错入场，内层跑 CSS 悬停位移——
+    否则两者争抢同一个 `transform`，WAAPI 的 `fill:'both'` 会锁死 CSS 过渡。
+- **音效** `src/audio/engine.ts`：Web Audio 振荡器**程序化合成**，不加载任何音频文件
+  （零体积、零延迟，且可参数化——告警音能随危险等级实时变化）。
+  - **双总线**：UI 总线可被用户静音；**告警总线独立**，不受 UI 静音影响，
+    因为电压/失控告警属安全信息，不应被界面静音顺带屏蔽。
+  - 指数斜坡不能以 0 为端点，包络用 `0.0001` 收尾（写成 0 会抛异常或静音）。
+  - 自动播放策略：`App.tsx` 在首次 `pointerdown`/`keydown` 时 `unlockAudio()` 一次。
+- **路由过渡**：`uiStore.go` 用 `document.startViewTransition` 包裹，内部必须
+  `flushSync` 同步提交 React 更新，否则截不到新旧两帧。
+- **设置** `src/state/settingsStore.ts`（localStorage 持久化）+ `SettingsDialog.tsx`：
+  界面音效开关 / 界面音量 / 告警音量 / 精简动效，标题栏齿轮进入。
+- **动效护栏**（务必保持）：
+  1. **飞行界面必须克制**——环形菜单、流光描边等只用于主菜单/设置等"外壳"页面，
+     飞行主界面不加装饰动效，避免分散学员注意力（安全考量）。
+  2. **低配笔记本**——动效只用 `transform`/`opacity`（GPU 合成，不触发 layout/paint）；
+     「精简动效」开关写 `data-motion="reduced"` 到根元素，CSS 统一降级；
+     同时尊重系统 `prefers-reduced-motion`（见 `util/motion.ts`、`peugeot.css` 末尾）。
+  3. **教室场景**——界面音效必须能一键全局静音。
+  4. **CSP**——`index.html` 是 `default-src 'self'`，字体/图片/音频一律本地打包，不引 CDN。

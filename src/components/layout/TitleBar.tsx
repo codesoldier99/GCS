@@ -2,7 +2,8 @@ import type { CSSProperties } from 'react'
 import { useUi } from '../../state/uiStore'
 import { useLink } from '../../state/linkStore'
 import { Icon } from '../Icon'
-import logoMark from '../../assets/logo-mark.png'
+import { playCue } from '../../audio/engine'
+import logoMark from '../../assets/logo-mark-light.png'
 
 const drag = { WebkitAppRegion: 'drag' } as CSSProperties
 const noDrag = { WebkitAppRegion: 'no-drag' } as CSSProperties
@@ -29,6 +30,7 @@ export function TitleBar(): JSX.Element {
   const route = useUi((s) => s.route)
   const go = useUi((s) => s.go)
   const openConnect = useUi((s) => s.openConnect)
+  const setSettingsOpen = useUi((s) => s.setSettingsOpen)
   const status = useLink((s) => s.status)
   const st = statusText()
 
@@ -60,7 +62,11 @@ export function TitleBar(): JSX.Element {
         <button
           className="btn ghost"
           style={{ ...noDrag, padding: '4px 10px', fontSize: 13 }}
-          onClick={() => go('home')}
+          onClick={() => {
+            playCue('back')
+            go('home')
+          }}
+          onMouseEnter={() => playCue('hover')}
         >
           <Icon name="home" size={16} /> 主菜单
         </button>
@@ -94,6 +100,19 @@ export function TitleBar(): JSX.Element {
           }}
         />
         {st.text}
+      </button>
+
+      <button
+        className="btn ghost"
+        style={{ ...noDrag, padding: '4px 8px' }}
+        title="界面设置（音效 / 动效）"
+        onClick={() => {
+          playCue('select')
+          setSettingsOpen(true)
+        }}
+        onMouseEnter={() => playCue('hover')}
+      >
+        <Icon name="tuning" size={16} />
       </button>
 
       <div style={{ display: 'flex', gap: 2, ...noDrag }}>

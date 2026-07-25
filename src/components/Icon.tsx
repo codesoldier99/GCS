@@ -51,7 +51,8 @@ export type IconName =
   | 'grip'
   | 'save'
 
-const P: Record<IconName, string> = {
+/** 图标路径数据（24×24 viewBox）。导出以便在别处的 SVG 里内联复用，如环形主菜单。 */
+export const ICON_PATHS: Record<IconName, string> = {
   drone:
     'M4 4l4 4M20 4l-4 4M4 20l4-4M20 20l-4-4M9 9h6v6H9zM6 6a2 2 0 100-.01M18 6a2 2 0 100-.01M6 18a2 2 0 100-.01M18 18a2 2 0 100-.01',
   propeller:
@@ -127,7 +128,7 @@ export function Icon({ name, size = 20, color = 'currentColor', strokeWidth = 1.
       style={style}
       aria-hidden
     >
-      <path d={P[name]} />
+      <path d={ICON_PATHS[name]} />
     </svg>
   )
 }

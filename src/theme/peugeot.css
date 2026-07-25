@@ -50,6 +50,109 @@
 
   --bar-h: 58px; /* 顶部遥测栏高 */
   --title-h: 40px;
+
+  /* 动效令牌 */
+  --dur-fast: 0.14s;
+  --dur: 0.24s;
+  --dur-slow: 0.42s;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ============================================================
+   动效层
+   目标运行环境是 Electron（固定 Chromium），故可直接使用
+   @property / View Transitions 等新特性，无需兼容分支。
+   ============================================================ */
+
+/* 流光描边：conic 渐变绕边框旋转，用 mask 只保留 1px 边 */
+@property --flow-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+.flow {
+  position: relative;
+}
+.flow::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: conic-gradient(
+    from var(--flow-angle),
+    transparent 52%,
+    var(--primary) 74%,
+    #eafcff 82%,
+    var(--primary) 90%,
+    transparent 100%
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: flow-spin 3.6s linear infinite;
+  pointer-events: none;
+}
+@keyframes flow-spin {
+  to {
+    --flow-angle: 360deg;
+  }
+}
+
+/* 环形菜单的扫描弧 */
+.ring-scan {
+  animation: ring-spin 12s linear infinite;
+}
+@keyframes ring-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 路由切换：整页 morph 过渡 */
+::view-transition-old(root) {
+  animation: vt-out 0.26s var(--ease-out) both;
+}
+::view-transition-new(root) {
+  animation: vt-in 0.34s var(--ease-out) both;
+}
+@keyframes vt-out {
+  to {
+    opacity: 0;
+    transform: scale(0.985);
+  }
+}
+@keyframes vt-in {
+  from {
+    opacity: 0;
+    transform: scale(1.014);
+  }
+}
+
+/* ---- 精简动效降级 ----
+   低配笔记本 / 前庭敏感用户：用户显式开关（data-motion）或系统偏好都生效。
+   保留极短时长而非 0，避免依赖 transitionend 的逻辑永远等不到回调。 */
+:root[data-motion='reduced'] *,
+:root[data-motion='reduced'] *::before,
+:root[data-motion='reduced'] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
+:root[data-motion='reduced']::view-transition-old(root),
+:root[data-motion='reduced']::view-transition-new(root) {
+  animation: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* 荧光文本 */

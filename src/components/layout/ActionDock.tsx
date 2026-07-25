@@ -3,10 +3,16 @@ import { Icon, type IconName } from '../Icon'
 import { useVehicleField } from '../../state/useVehicleField'
 import { useLink } from '../../state/linkStore'
 import { SELECTABLE_MODES, modeById } from '@shared/modeMap'
+import { playCue } from '../../audio/engine'
 import type { VehicleCommand } from '@shared/protocol'
 
 async function confirmCmd(text: string, cmd: VehicleCommand): Promise<void> {
-  if (window.confirm(text)) await window.gcs.command(cmd)
+  // 危险指令（解锁/起飞/降落/返航）先给一记低频提示音，确认弹窗之外的第二重"注意"信号
+  playCue('danger')
+  if (window.confirm(text)) {
+    await window.gcs.command(cmd)
+    playCue('success')
+  }
 }
 
 function DockBtn({
