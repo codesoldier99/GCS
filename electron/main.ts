@@ -6,6 +6,14 @@ import { LinkManager } from './link/LinkManager'
 
 const isDev = !!process.env['ELECTRON_RENDERER_URL']
 
+/**
+ * 离屏渲染模式（`GCS_OFFSCREEN=1`）。
+ * 用于在**没有显示器的构建机**上跑界面验证与生成使用手册截图：
+ * 窗口渲染到内存位图，由 `webContents.capturePage()` 取帧。
+ * 正常启动不受影响。参见 `docs/make-shots.cjs`。
+ */
+const isOffscreen = process.env['GCS_OFFSCREEN'] === '1'
+
 // 打包产物不含 build/（electron-builder 的 win.icon 已把图标直接嵌入 exe），
 // 这个路径只在本地开发（未打包）时用于设置窗口/任务栏图标。
 const devIconPath = join(__dirname, '../../build/icon.png')
@@ -28,11 +36,13 @@ function createWindow(): void {
       preload: join(__dirname, '../preload/preload.mjs'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false
+      sandbox: false,
+      ...(isOffscreen ? { offscreen: true } : {})
     }
   })
 
-  mainWindow.on('ready-to-show', () => mainWindow?.show())
+  // 离屏窗口不需要（也不应该）显示；无显示器的机器上 show() 反而可能出问题
+  if (!isOffscreen) mainWindow.on('ready-to-show', () => mainWindow?.show())
   mainWindow.on('closed', () => {
     mainWindow = null
   })

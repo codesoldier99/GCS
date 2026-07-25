@@ -171,3 +171,20 @@ i-Cockpit 美学：深邃近黑蓝底 + 冰蓝荧光主色 + 铬银描边 + 标�
      同时尊重系统 `prefers-reduced-motion`（见 `util/motion.ts`、`peugeot.css` 末尾）。
   3. **教室场景**——界面音效必须能一键全局静音。
   4. **CSP**——`index.html` 是 `default-src 'self'`，字体/图片/音频一律本地打包，不引 CDN。
+
+## 11. 使用手册与配图
+
+- `docs/manual.html` → `docs/make-manual.cjs` 渲染为 `docs/中影智能-使用手册.pdf`。
+- **配图统一由 `docs/make-shots.cjs` 生成**，不要手工截图：
+  ```bash
+  npm run build
+  ELECTRON_DISABLE_SANDBOX=1 npx electron docs/make-shots.cjs --no-sandbox   # 重截 docs/images/*.png
+  ELECTRON_DISABLE_SANDBOX=1 npx electron docs/make-manual.cjs --no-sandbox  # 再出 PDF
+  ```
+  该脚本自己就是 Electron 主进程入口：先设 `GCS_OFFSCREEN=1` 再动态 import
+  `out/main/main.js`，于是拿到**完整 IPC 与内置仿真**，截出来的是真实运行状态
+  （仿真在飞、参数已读取、评分在跑），而不是空数据界面。
+- `electron/main.ts` 的 `GCS_OFFSCREEN=1` 只用于无显示器构建机上的离屏渲染，正常启动不受影响。
+- **改动 UI 后请重跑上面两条命令**，否则手册配图会与实际界面脱节。
+- `docs/images/ui.png` 是标志 i-Cockpit 配色参考图、`logo.jpg` 是品牌源文件，
+  **均非截图，不要被 make-shots 覆盖或误删**。
