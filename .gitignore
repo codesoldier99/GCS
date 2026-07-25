@@ -1,0 +1,13 @@
+node_modules/
+out/
+release/
+dist/
+*.log
+.DS_Store
+.claude/
+
+# 第三方参考资料（厂商手册/介绍材料），只留本地，不进仓库
+/FLIGHT CONTROL.pdf
+/GCS.pdf
+/地面站软件介绍-翎客、华科尔.pptx
+/XQ.DOC

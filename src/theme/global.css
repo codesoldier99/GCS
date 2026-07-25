@@ -1,0 +1,129 @@
+@import './peugeot.css';
+
+* {
+  box-sizing: border-box;
+}
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+body {
+  font-family: var(--font-ui);
+  color: var(--text-hi);
+  background:
+    radial-gradient(1200px 700px at 70% -10%, rgba(10, 132, 196, 0.14), transparent 60%),
+    radial-gradient(900px 600px at 10% 110%, rgba(23, 212, 230, 0.08), transparent 55%),
+    var(--bg-0);
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  overflow: hidden;
+}
+#root {
+  display: flex;
+  flex-direction: column;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  color: var(--text-hi);
+  background: transparent;
+  border: none;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--stroke);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* 通用按钮基元 */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 9px 16px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--stroke);
+  background: var(--bg-2);
+  color: var(--text-hi);
+  font-size: 14px;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s,
+    background 0.15s,
+    transform 0.05s;
+}
+.btn:hover {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 1px var(--primary-dim);
+}
+.btn:active {
+  transform: translateY(1px);
+}
+.btn.primary {
+  background: linear-gradient(180deg, var(--primary-deep), #0a6ba0);
+  border-color: transparent;
+  box-shadow: 0 0 14px rgba(10, 132, 196, 0.4);
+}
+.btn.primary:hover {
+  box-shadow: 0 0 20px rgba(23, 212, 230, 0.55);
+}
+.btn.danger {
+  border-color: var(--danger);
+  color: #ffd9d6;
+}
+.btn.danger:hover {
+  background: rgba(230, 51, 40, 0.14);
+  box-shadow: 0 0 14px var(--danger-glow);
+}
+.btn.ghost {
+  background: transparent;
+}
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* 图标按钮（工具栏） */
+.icon-btn {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--stroke-soft);
+  background: rgba(12, 20, 36, 0.72);
+  color: var(--text-mid);
+  backdrop-filter: blur(6px);
+  transition:
+    color 0.15s,
+    border-color 0.15s,
+    background 0.15s;
+}
+.icon-btn:hover {
+  color: var(--primary);
+  border-color: var(--primary);
+}
+.icon-btn.active {
+  color: var(--bg-0);
+  background: var(--primary);
+  border-color: var(--primary);
+  box-shadow: 0 0 14px var(--primary-glow);
+}
+
+.label {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--text-lo);
+  text-transform: uppercase;
+}

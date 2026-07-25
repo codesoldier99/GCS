@@ -1,0 +1,459 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>中影智能 使用手册</title>
+<style>
+  :root{
+    --navy:#0e2748; --blue:#0a5ca8; --cyan:#0e7f95; --accent:#c07a00;
+    --danger:#c62f24; --green:#177a52; --ink:#1c2635; --mut:#5a6b82; --line:#d9e1ec;
+    --bg-soft:#f2f6fb;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:"Noto Sans CJK SC","Source Han Sans SC","WenQuanYi Zen Hei","Microsoft YaHei",system-ui,sans-serif;
+    color:var(--ink); font-size:10.6pt; line-height:1.72;
+  }
+  h1,h2,h3,h4{color:var(--navy); line-height:1.3; margin:0}
+  p{margin:.5em 0}
+  code{font-family:"DejaVu Sans Mono",Consolas,monospace; background:var(--bg-soft);
+    padding:1px 5px; border-radius:4px; font-size:.9em; color:var(--blue)}
+  a{color:var(--blue); text-decoration:none}
+
+  /* 页 */
+  .page-break{page-break-before:always}
+  section{page-break-inside:auto}
+
+  /* 封面 */
+  .cover{height:252mm; display:flex; flex-direction:column; page-break-after:always}
+  .cover .band{height:10mm; background:linear-gradient(90deg,var(--navy),var(--blue) 55%,var(--cyan)); border-radius:3px}
+  .brandline{margin-top:16mm; letter-spacing:.42em; color:var(--cyan); font-weight:700; font-size:11pt}
+  .cover h1{font-size:33pt; margin:6mm 0 3mm; letter-spacing:.02em}
+  .cover .sub{font-size:14pt; color:var(--mut)}
+  .cover .hero{margin:12mm 0; border:1px solid var(--line); border-radius:10px; overflow:hidden;
+    box-shadow:0 12px 34px rgba(14,39,72,.18)}
+  .cover .hero img{width:100%; display:block}
+  .cover .meta{margin-top:auto; border-top:2px solid var(--line); padding-top:6mm;
+    display:flex; justify-content:space-between; align-items:flex-end; color:var(--mut); font-size:10pt}
+  .cover .meta b{color:var(--navy)}
+  .logo{display:inline-flex; align-items:center; gap:9px}
+  .logo svg{filter:drop-shadow(0 2px 5px rgba(10,132,196,.35))}
+
+  /* 标题 */
+  h2.sec{font-size:18pt; padding:0 0 3mm; margin:0 0 5mm; border-bottom:2.5px solid var(--cyan);
+    display:flex; align-items:baseline; gap:12px}
+  h2.sec .no{color:var(--cyan); font-size:15pt; font-weight:800}
+  h3{font-size:13pt; margin:7mm 0 2mm; color:var(--blue)}
+  h4{font-size:11pt; margin:4mm 0 1mm; color:var(--navy)}
+
+  /* 图 */
+  figure{margin:4mm 0; break-inside:avoid}
+  figure img{width:100%; display:block; border:1px solid var(--line); border-radius:8px}
+  figcaption{font-size:9pt; color:var(--mut); margin-top:2mm; text-align:center}
+  figcaption b{color:var(--cyan)}
+
+  /* 提示框 */
+  .box{border-left:4px solid var(--blue); background:var(--bg-soft); border-radius:0 8px 8px 0;
+    padding:8px 14px; margin:4mm 0; break-inside:avoid; font-size:10pt}
+  .box .t{font-weight:700; margin-bottom:2px; display:flex; align-items:center; gap:7px}
+  .box.coach{border-color:var(--blue)} .box.coach .t{color:var(--blue)}
+  .box.student{border-color:var(--green); background:#eefaf4} .box.student .t{color:var(--green)}
+  .box.danger{border-color:var(--danger); background:#fdf1f0} .box.danger .t{color:var(--danger)}
+  .box.warn{border-color:var(--accent); background:#fdf7ec} .box.warn .t{color:var(--accent)}
+  .tag{display:inline-block; font-size:8.5pt; font-weight:700; padding:1px 8px; border-radius:999px; color:#fff}
+  .tag.c{background:var(--blue)} .tag.s{background:var(--green)}
+
+  /* 列表步骤 */
+  ol.steps{margin:2mm 0; padding-left:0; counter-reset:st; list-style:none}
+  ol.steps>li{position:relative; padding:2px 0 6px 30px; margin:0; break-inside:avoid}
+  ol.steps>li::before{counter-increment:st; content:counter(st); position:absolute; left:0; top:1px;
+    width:20px; height:20px; background:var(--cyan); color:#fff; border-radius:50%;
+    font-size:9pt; font-weight:700; display:flex; align-items:center; justify-content:center}
+  ul{margin:2mm 0; padding-left:20px} ul li{margin:1.5px 0}
+
+  /* 表 */
+  table{width:100%; border-collapse:collapse; margin:3mm 0; font-size:9.6pt; break-inside:avoid}
+  th,td{border:1px solid var(--line); padding:5px 9px; text-align:left; vertical-align:top}
+  th{background:var(--navy); color:#fff; font-weight:600}
+  tr:nth-child(even) td{background:var(--bg-soft)}
+  .kbd{font-family:monospace; font-size:9pt; color:var(--navy)}
+
+  /* 目录 */
+  .toc{columns:1}
+  .toc div{display:flex; justify-content:space-between; padding:3px 0; border-bottom:1px dotted var(--line)}
+  .toc .n{color:var(--cyan); font-weight:700; width:26px}
+  .toc a{flex:1; color:var(--ink)}
+
+  .lead{font-size:11pt; color:var(--mut)}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:5mm}
+  .pill{display:inline-block;background:var(--navy);color:#fff;border-radius:6px;padding:2px 9px;font-size:9pt;font-weight:600}
+</style>
+</head>
+<body>
+
+<!-- ============ 封面 ============ -->
+<div class="cover">
+  <div class="band"></div>
+  <div class="brandline">中影智能</div>
+  <h1>无人机地面控制站<br/>使用手册</h1>
+  <div class="sub">面向培训学校 · <b style="color:var(--blue)">教练</b> 与 <b style="color:var(--green)">学员</b> · 图文操作指南</div>
+  <figure class="hero" style="margin-bottom:0">
+    <img src="images/home.png" alt="主界面"/>
+  </figure>
+  <div class="meta">
+    <div>
+      <div class="logo">
+        <img src="images/logo-full.png" alt="中影智能" style="height:24px;display:block"/>
+      </div>
+      <div style="margin-top:3mm">适用飞控：APM / ArduPilot（翎客 X6PRO）</div>
+    </div>
+    <div style="text-align:right">
+      <div>版本 <b>V1.0</b></div>
+      <div>连接方式：仿真 / 串口 / UDP / TCP</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 目录 ============ -->
+<section>
+  <h2 class="sec"><span class="no">目录</span></h2>
+  <div class="toc">
+    <div><span class="n">1</span><a>前言：本手册怎么用</a></div>
+    <div><span class="n">2</span><a>软件简介与功能总览</a></div>
+    <div><span class="n">3</span><a>系统要求与安装启动</a></div>
+    <div><span class="n">4</span><a>连接无人机</a></div>
+    <div><span class="n">5</span><a>认识飞行主界面</a></div>
+    <div><span class="n">6</span><a>手动飞行操作</a></div>
+    <div><span class="n">7</span><a>模拟飞行（学员练习）</a></div>
+    <div><span class="n">8</span><a>航线飞行与航点规划</a></div>
+    <div><span class="n">9</span><a>装机向导（六步）</a></div>
+    <div><span class="n">10</span><a>飞控调参与固件升级</a></div>
+    <div><span class="n">11</span><a>CAAC 绕八字飞行考试</a></div>
+    <div><span class="n">12</span><a>飞行日志回放</a></div>
+    <div><span class="n">13</span><a>安全操作规范</a></div>
+    <div><span class="n">14</span><a>常见问题 FAQ</a></div>
+    <div><span class="n">15</span><a>附录：模式对照 / 术语 / 指示灯</a></div>
+  </div>
+
+  <h3>图标约定</h3>
+  <div class="box coach"><div class="t">🎓 教练须知</div>面向教练/教员的操作与教学要点（装机、调参、考试判定等）。</div>
+  <div class="box student"><div class="t">🧑‍✈️ 学员须知</div>面向学员的练习与操作要点，建议从"模拟飞行"起步。</div>
+  <div class="box warn"><div class="t">⚠ 警告</div>可能导致人身伤害或炸机的操作，务必留意。</div>
+  <div class="box danger"><div class="t">⛔ 危险</div>严禁的操作。</div>
+</section>
+
+<!-- ============ 1 前言 ============ -->
+<section class="page-break">
+  <h2 class="sec"><span class="no">1</span> 前言：本手册怎么用</h2>
+  <p class="lead">本手册介绍 中影智能 无人机地面控制站（下称"地面站"）的使用方法，供无人机培训学校的教练与学员参考。</p>
+  <p>地面站连接 <b>APM / ArduPilot</b> 飞控（参考硬件为翎客 X6PRO），可用于日常教学、模拟练习与 CAAC 考试科目训练。软件遵循"<b>仿真优先 + 真机接口</b>"设计：学员无需真机即可在"模拟飞行"中熟悉全部界面与操作，教练则通过真机（串口 / 数传）进行教学演示与考试。</p>
+  <div class="grid2">
+    <div class="box coach"><div class="t">🎓 教练建议路线</div>第 3→4→9→10 章（安装、连接、装机向导、调参）打好机器基础，再用第 11 章组织绕八字考试与评分。</div>
+    <div class="box student"><div class="t">🧑‍✈️ 学员建议路线</div>第 3→7→5→6 章（安装、模拟飞行、认识界面、手动操作），熟练后进入第 8 章航线规划与第 11 章绕八字练习。</div>
+  </div>
+</section>
+
+<!-- ============ 2 简介 ============ -->
+<section class="page-break">
+  <h2 class="sec"><span class="no">2</span> 软件简介与功能总览</h2>
+  <p>打开软件进入主菜单，六个功能模块一目了然：</p>
+  <figure><img src="images/home.png"/><figcaption><b>图 2-1</b>　主菜单：六大功能模块 + 右上角连接状态</figcaption></figure>
+  <table>
+    <tr><th style="width:22%">模块</th><th>说明</th><th style="width:14%">对象</th></tr>
+    <tr><td><b>手动飞行</b></td><td>实时遥测、姿态球、一键解锁/起飞/返航/降落、切换飞行模式</td><td>教练·学员</td></tr>
+    <tr><td><b>航线飞行</b></td><td>航点规划、模板（圆/弓/星）、旋转平移、上传/下载航线</td><td>教练·学员</td></tr>
+    <tr><td><b>装机向导</b></td><td>机架、电机测试、安装偏移、安全项、指南针校准、遥控器</td><td>教练</td></tr>
+    <tr><td><b>CAAC 训练</b></td><td>绕八字飞行考试（实时评分）、飞行日志回放</td><td>教练·学员</td></tr>
+    <tr><td><b>飞控调参</b></td><td>全参数读写、固件升级</td><td>教练</td></tr>
+    <tr><td><b>模拟飞行</b></td><td>内置飞行仿真，无需真机即可练习</td><td>学员</td></tr>
+  </table>
+  <div class="box"><div class="t">💡 界面右上角"连接状态"</div>绿色=已连接，红色=未连接。任何时候点击它都可打开"连接设置"。</div>
+</section>
+
+<!-- ============ 3 安装 ============ -->
+<section class="page-break">
+  <h2 class="sec"><span class="no">3</span> 系统要求与安装启动</h2>
+  <h3>系统要求</h3>
+  <ul>
+    <li>操作系统：Windows 10 / 11（64 位）</li>
+    <li>内存：4 GB 以上；磁盘：500 MB 可用空间</li>
+    <li>真机连接：USB 串口 或 数传（默认波特率 <code>115200</code>）</li>
+  </ul>
+  <h3>安装（便携版）</h3>
+  <ol class="steps">
+    <li>将 <code>中影智能-win.zip</code> 拷贝到电脑并解压到任意目录（如桌面）。</li>
+    <li>进入解压出的文件夹，双击 <code>中影智能.exe</code> 启动，无需安装。</li>
+    <li>首次运行 Windows 若弹出安全提示，选择"仍要运行"。</li>
+  </ol>
+  <div class="box warn"><div class="t">⚠ 注意</div>请勿将软件放在中文路径过深或受保护的系统目录；建议解压到普通用户目录，保证日志/配置可正常读写。</div>
+  <div class="box coach"><div class="t">🎓 教练：批量部署</div>可将解压好的整个文件夹拷贝到各教学机，或制作快捷方式统一分发。</div>
+</section>
+
+<!-- ============ 4 连接 ============ -->
+<section class="page-break">
+  <h2 class="sec"><span class="no">4</span> 连接无人机</h2>
+  <p>点击右上角"连接状态"胶囊，打开"连接设置"，共四种数据源：</p>
+  <table>
+    <tr><th style="width:16%">方式</th><th>用途</th><th style="width:34%">参数</th></tr>
+    <tr><td><b>仿真</b></td><td>学员练习首选，无需硬件</td><td>直接连接</td></tr>
+    <tr><td><b>串口</b></td><td>USB / 数传 连接真机飞控</td><td>选择 COM 口，波特率 <code>115200</code></td></tr>
+    <tr><td><b>UDP</b></td><td>仿真器 / 网络数传</td><td>本地端口（SITL 默认 <code>14550</code>）</td></tr>
+    <tr><td><b>TCP</b></td><td>网络转发的飞控</td><td>主机 + 端口（SITL 默认 <code>5760</code>）</td></tr>
+  </table>
+  <div class="box student"><div class="t">🧑‍✈️ 学员</div>选"<b>仿真</b>"即可开始。连接后顶部/底部所有仪表都会实时跳动，与真机完全一致。</div>
+  <div class="box coach"><div class="t">🎓 教练：真机连接</div>USB 连接飞控后在"串口"中选择对应 COM 口（波特率 115200）；数传同理。连接成功后胶囊变绿并显示端口。作业时请务必先给遥控器开机并保持油门最低，再给飞控端供电。</div>
+</section>
+
+<!-- ============ 5 主界面 ============ -->
+<section class="page-break">
+  <h2 class="sec"><span class="no">5</span> 认识飞行主界面</h2>
+  <figure><img src="images/flight.png"/><figcaption><b>图 5-1</b>　飞行主界面：顶部遥测栏、地图、左侧指令坞、底部仪表栏与姿态球</figcaption></figure>
+
+  <h3>顶部遥测栏（无人机状态）</h3>
+  <table>
+    <tr><th>字段</th><th>含义</th><th>字段</th><th>含义</th></tr>
+    <tr><td>模式</td><td>当前飞行模式</td><td>垂直速度 VS</td><td>爬升/下降速度</td></tr>
+    <tr><td>螺旋桨</td><td>已解锁 / 已闭锁</td><td>相对高度</td><td>相对起飞点高度</td></tr>
+    <tr><td>电压</td><td>电池电压 / 余量</td><td>海拔</td><td>海拔高度</td></tr>
+    <tr><td>卫星</td><td>卫星数 / 定位类型</td><td>距起飞点</td><td>水平直线距离</td></tr>
+    <tr><td>水平速度 HS</td><td>对地水平速度</td><td>飞行时间</td><td>解锁后累计</td></tr>
+  </table>
+
+  <h3>底部仪表栏</h3>
+  <ul>
+    <li><b>电机油门</b>：M1–M8 各电机输出（%）。</li>
+    <li><b>速度 / 姿态</b>：目标与北/东/垂直速度；横滚、俯仰、航向、GPS 航向。</li>
+    <li><b>姿态球</b>：人工地平仪 + 罗盘环，直观显示飞行器姿态与朝向。</li>
+    <li><b>高度 / 距离 / 振动指数</b>：目标/当前/海拔高度；距起飞点/对地；X/Y/Z 振动（绿色正常、黄色注意、红色危险）。</li>
+  </ul>
+  <div class="box"><div class="t">💡 地图工具（右侧）</div>切换卫星/街道底图、跟随飞机、清除轨迹、放大缩小。左侧指令坞见第 6 章。</div>
+</section>
+
+<!-- ============ 6 手动飞行 ============ -->
+<section class="page-break">
+  <h2 class="sec"><span class="no">6</span> 手动飞行操作</h2>
+  <p>飞行界面左上角为"指令坞"，含 解锁/上锁、起飞、返航、降落、切换飞行模式。危险指令均需<b>二次确认</b>。</p>
+  <ol class="steps">
+    <li><b>解锁</b>：确认周围安全、（真机）已卸桨或场地空旷后点击"解锁"，电机开始怠速旋转。</li>
+    <li><b>起飞</b>：点击"起飞"，确认目标高度（默认 30 m），飞行器自动爬升到该高度悬停。</li>
+    <li><b>切换模式</b>：点击模式按钮选择 姿态 / 定高 / GPS / 定点 / 返航 / 自动 等（见附录 A）。</li>
+    <li><b>返航</b>：点击"返航"，飞行器爬升到返航高度后飞回起飞点并降落。</li>
+    <li><b>降落</b>：点击"降落"原地下降；<b>上锁</b>在落地后使电机停转。</li>
+  </ol>
+  <div class="box danger"><div class="t">⛔ 危险</div>飞行中掰杆上锁（外八/内八）会导致坠机；空中严禁上锁，紧急情况除外。</div>
+  <div class="box warn"><div class="t">⚠ 警告</div>初次起飞建议使用<b>姿态模式</b>，在无风、空旷、远离人群与建筑处进行；起飞前核对指南针方向。</div>
+</section>
+
+<!-- ============ 7 模拟飞行 ============ -->
+<section class="page-break">
+  <h2 class="sec"><span class="no">7</span> 模拟飞行（学员练习）</h2>
+  <div class="box student"><div class="t">🧑‍✈️ 学员</div>本章是无真机时的主要练习方式。所有界面、仪表、航线与考试功能都可在仿真中体验。</div>
+  <ol class="steps">
+    <li>主菜单点击"<b>模拟飞行</b>"，软件自动以仿真连接。</li>
+    <li>点击左下角"<b>一键演示：自动起飞绕圈</b>"，仿真无人机会自动解锁、起飞并绕圈飞行。</li>
+    <li>观察顶部/底部遥测、姿态球与地图轨迹的实时联动，熟悉各读数含义。</li>
+    <li>也可用指令坞手动 解锁→起飞→切模式→返航→降落，反复练习标准流程。</li>
+  </ol>
+  <div class="box"><div class="t">💡 提示</div>仿真与真机在界面上体验一致；学员练熟后再上真机，可显著降低炸机风险。</div>
+</section>
+
+<!-- ============ 8 航线飞行 ============ -->
+<section class="page-break">
+  <h2 class="sec"><span class="no">8</span> 航线飞行与航点规划</h2>
+  <p>主菜单进入"航线飞行"。右侧为航点工具栏，左侧为航线/航点参数面板。</p>
+  <figure><img src="images/mission.png"/><figcaption><b>图 8-1</b>　航线规划：编号航点、航线折线与分段标签（距离 | 速度 | 航向），左侧航线设置</figcaption></figure>
+
+  <h3>基础操作</h3>
+  <ol class="steps">
+    <li>点击工具栏"<b>+ 添加航点</b>"进入加点模式，在地图上点击落点，自动生成编号航点。</li>
+    <li>点击某航点选中，左侧编辑其 经纬度 / 高度 / 方位角 / 相对距离 / 转弯方式 / 悬停 / 速度；拖动航点可移动。</li>
+    <li>未选中时，左侧为<b>航线设置</b>：批量修改所有航点高度/速度/转弯/悬停，及 完成动作 / 循环 / 闭合 / 起始点 / 爬升类型。</li>
+    <li>工具栏还提供：删除当前航点、清空、显示全部、撤销/重做。</li>
+  </ol>
+
+  <h3>航线模板</h3>
+  <p>点击工具栏"航线模板"，可一键生成 <b>圆形 / 弓形（扫描线）/ 星形</b> 航线，带实时预览：</p>
+  <figure><img src="images/mission-template.png"/><figcaption><b>图 8-2</b>　弓形（扫描线）模板：设置边长/宽度/航点数/航向，右下角为路径预览</figcaption></figure>
+
+  <h3>变换与上传下载</h3>
+  <ul>
+    <li><b>航线变换</b>：绕基点旋转（延北夹角）、按向北/向东平移、航点反序。</li>
+    <li><b>修改航点顺序</b>：拖拽或上下箭头调整顺序。</li>
+    <li><b>收发</b>：点击"任务列表"→ <span class="pill">上传航点</span> 写入飞控，<span class="pill">下载航点</span> 读回飞控中的航线。</li>
+  </ul>
+  <div class="box"><div class="t">💡 让仿真飞航线</div>上传航线后，在指令坞切换到"<b>自动模式</b>"，仿真无人机即按航线自动飞行。</div>
+</section>
+
+<!-- ============ 9 装机向导 ============ -->
+<section class="page-break">
+  <h2 class="sec"><span class="no">9</span> 装机向导（六步）</h2>
+  <div class="box coach"><div class="t">🎓 教练</div>装机向导用于新机调试或参数复核。请按步骤条依次完成六步。</div>
+
+  <h3>第 1 步·机架类型</h3>
+  <figure><img src="images/m3-wizard-frame.png"/><figcaption><b>图 9-1</b>　选择四/六/八轴机架及布局（+/X）</figcaption></figure>
+
+  <h3>第 2 步·电机测试</h3>
+  <figure><img src="images/m3-wizard-motor.png"/><figcaption><b>图 9-2</b>　电机测试：卸桨确认后逐个/依次测试，核对转向（红=顺时针，绿=逆时针）</figcaption></figure>
+  <div class="box danger"><div class="t">⛔ 危险</div>电机测试前<b>务必卸下所有螺旋桨</b>，并勾选"已卸桨，确认安全"后方可操作。</div>
+
+  <h3>第 3–4 步·安装偏移</h3>
+  <p>若飞控 / GPS 未安装在机架正中心，按实际位置设置 X/Y/Z 偏移；并选择飞控安装方向。GPS1 与 GPS2 偏移应一一对应。</p>
+
+  <h3>第 5 步·安全项</h3>
+  <figure><img src="images/m3-wizard-safety.png"/><figcaption><b>图 9-3</b>　安全项：返航高度、一/二级电压保护、电子围栏、失控保护、指南针校准</figcaption></figure>
+  <ul>
+    <li><b>返航高度</b>：默认 60 m，按场地净空设置。</li>
+    <li><b>电压保护</b>：一级/二级阈值与对应动作（返航 / 降落）。</li>
+    <li><b>电子围栏</b>：启用后设定最大半径与高度、触发动作。</li>
+    <li><b>指南针校准</b>：点击"开始校准"，按提示水平/垂直各方向旋转飞行器，进度条走满即完成。校准后需重启飞控生效。</li>
+  </ul>
+  <div class="box warn"><div class="t">⚠ 指南针校准注意</div>请勿在强磁、大块金属（停车场、含钢筋建筑）附近校准；校准时勿随身携带钥匙、手表等磁性物。</div>
+
+  <h3>第 6 步·遥控器</h3>
+  <figure><img src="images/m3-wizard-rc.png"/><figcaption><b>图 9-4</b>　遥控器：设置飞行模式六段、实时通道监视、行程校准</figcaption></figure>
+  <ul>
+    <li><b>飞行模式</b>：一般用通道 5（三段开关）映射六个档位的模式。</li>
+    <li><b>通道监视</b>：拨动摇杆观察 CH1–CH4 数值与方向是否正确。</li>
+    <li><b>行程校准</b>：拨动摇杆至最大/最小，将各通道 MIN/MAX/TRIM 写入飞控。</li>
+  </ul>
+</section>
+
+<!-- ============ 10 调参 ============ -->
+<section class="page-break">
+  <h2 class="sec"><span class="no">10</span> 飞控调参与固件升级</h2>
+  <div class="box coach"><div class="t">🎓 教练</div>调参涉及飞行安全，非必要请勿随意修改；修改前建议记录原值。</div>
+
+  <h3>参数总表</h3>
+  <figure><img src="images/m3-tuning-params.png"/><figcaption><b>图 10-1</b>　参数总表：搜索、按分组浏览、编辑数值、逐项"写入"飞控</figcaption></figure>
+  <ol class="steps">
+    <li>连接飞控后进入"飞控调参"，点击"读取参数"加载全部参数。</li>
+    <li>用搜索框按参数名或中文分组筛选；在数值框修改后点击"<b>写入</b>"生效（脏值高亮）。</li>
+  </ol>
+
+  <h3>固件升级</h3>
+  <figure><img src="images/m3-tuning-firmware.png"/><figcaption><b>图 10-2</b>　固件升级：选择 .lkiso 固件文件并升级</figcaption></figure>
+  <div class="box danger"><div class="t">⛔ 危险</div>固件升级过程中<b>请勿断电或拔掉 USB</b>。升级需 USB 连接飞控并进入 bootloader，务必在真机环境下操作。</div>
+</section>
+
+<!-- ============ 11 绕八字 ============ -->
+<section class="page-break">
+  <h2 class="sec"><span class="no">11</span> CAAC 绕八字飞行考试</h2>
+  <p>主菜单进入"CAAC 训练"→"绕八字飞行考试"。设置两个电子桩后，软件绘制两圆与理想八字路径，并对飞行进行<b>实时评分</b>。</p>
+  <figure><img src="images/m4-exam.png"/><figcaption><b>图 11-1</b>　绕八字考试：两电子桩 + 理想八字路径 + 左侧实时评分面板</figcaption></figure>
+
+  <h3>操作步骤</h3>
+  <ol class="steps">
+    <li><b>布桩</b>：点击"设置桩A/桩B"后在地图点击落点；或"以起飞点自动布桩"。设置圆半径。</li>
+    <li><b>开始考试</b>：起飞并进入八字航线后点击"开始考试"，开始实时评分。</li>
+    <li><b>结束评分</b>：完成后点击"结束并评分"，得出合格判定。</li>
+    <li>无真机时可点"<b>仿真演示：自动绕八字</b>"，观察评分逻辑。</li>
+  </ol>
+
+  <h3>评分项与判定</h3>
+  <table>
+    <tr><th>评分项</th><th>含义</th><th>合格参考</th></tr>
+    <tr><td>完成圈数</td><td>完整 8 字数量</td><td>≥ 1</td></tr>
+    <tr><td>最大横向偏差</td><td>偏离理想圆环的最大距离</td><td>≤ 3 m</td></tr>
+    <tr><td>平均偏差</td><td>全程平均横向偏差</td><td>越小越好</td></tr>
+    <tr><td>高度保持</td><td>相对起始高度的最大波动</td><td>≤ 2 m</td></tr>
+    <tr><td>用时</td><td>考试用时</td><td>参考</td></tr>
+  </table>
+  <div class="box coach"><div class="t">🎓 教练</div>内置电子桩需配合 <b>RTK</b> 使用以保证精度；判定阈值可作为教学标准，仿真下可先带学员理解评分逻辑。</div>
+</section>
+
+<!-- ============ 12 回放 ============ -->
+<section class="page-break">
+  <h2 class="sec"><span class="no">12</span> 飞行日志回放</h2>
+  <p>"CAAC 训练"→"飞行日志回放"。软件会自动录制飞行会话，可回放复盘。</p>
+  <figure><img src="images/m4-replay.png"/><figcaption><b>图 12-1</b>　日志回放：时间轴（播放/暂停/0.5–8×/拖动）驱动仪表与地图轨迹同步</figcaption></figure>
+  <ol class="steps">
+    <li>点击"回放当前会话"载入本次飞行记录（或"导入日志文件"载入已保存的 .json）。</li>
+    <li>用底部时间轴 播放/暂停、拖动定位、切换 0.5×–8× 倍速；仪表与地图随之复现。</li>
+    <li>回放模式下实时遥测暂停，专注复盘飞行过程。</li>
+  </ol>
+  <div class="box"><div class="t">💡 提示</div>真机飞行日志也存于飞控 TF 卡的 <code>APM/logs</code> 目录（<code>.lklog</code>）。教练可用回放带学员逐段分析动作。</div>
+</section>
+
+<!-- ============ 13 安全 ============ -->
+<section class="page-break">
+  <h2 class="sec"><span class="no">13</span> 安全操作规范</h2>
+  <div class="box danger"><div class="t">⛔ 禁止事项</div>
+    <ul style="margin:2px 0">
+      <li>禁止在人群密集、障碍物多、强磁或信号干扰区域飞行。</li>
+      <li>作业时禁止遮盖遥控器天线；禁止在飞行中接打电话。</li>
+      <li>禁止疲劳、饮酒或身体不适时操作；未经许可禁止雨天、夜晚、强风飞行。</li>
+      <li>电机运转时禁止靠近；空中严禁掰杆上锁。</li>
+    </ul>
+  </div>
+  <div class="box warn"><div class="t">⚠ 必须执行</div>
+    <ul style="margin:2px 0">
+      <li>保持飞行器在视距范围内；作业前检查遥控器电量与飞控供电电压。</li>
+      <li>开始作业前先设置好失控保护；先开遥控器并保持油门最低，再给飞控供电。</li>
+      <li>结束作业先给飞控端断电，再关遥控器；降落后电机未停禁止松开遥控器。</li>
+      <li>飞控解锁时会刷新返航点，请在期望的返航位置解锁。</li>
+    </ul>
+  </div>
+  <div class="box coach"><div class="t">🎓 教练</div>组织学员实飞前，务必带其完成本章要点确认，并在场全程监督。未成年人使用须专业人士在场指导。</div>
+</section>
+
+<!-- ============ 14 FAQ ============ -->
+<section class="page-break">
+  <h2 class="sec"><span class="no">14</span> 常见问题 FAQ</h2>
+  <table>
+    <tr><th style="width:42%">问题</th><th>处理</th></tr>
+    <tr><td>连接后无数据 / 不出心跳</td><td>核对串口号与波特率（115200）；数传两端是否供电；UDP/TCP 端口是否正确。</td></tr>
+    <tr><td>卫星数少 / 无法定位</td><td>到空旷处等待搜星；远离遮挡与干扰；检查 GPS 连接。</td></tr>
+    <tr><td>地面站提示磁罗盘干扰严重</td><td>按第 9 章重新校准指南针，远离金属与强磁。</td></tr>
+    <tr><td>GPS 模式悬停自动画圈 / 飘移</td><td>重新校准指南针；检查安装方向与机架结构。</td></tr>
+    <tr><td>摇杆回中飞机往一个方向跑</td><td>进行遥控器行程校准（第 9 章）。</td></tr>
+    <tr><td>油门忽高忽低</td><td>校准遥控器行程，或适当加大油门通道死区（RC3_DZ）。</td></tr>
+    <tr><td>地图不显示</td><td>检查网络（卫星底图需联网）；可切换街道/卫星底图。</td></tr>
+    <tr><td>学员无真机怎么练</td><td>用"模拟飞行"，全部界面与科目均可练习。</td></tr>
+  </table>
+</section>
+
+<!-- ============ 15 附录 ============ -->
+<section class="page-break">
+  <h2 class="sec"><span class="no">15</span> 附录</h2>
+  <h3>附录 A · 飞行模式对照</h3>
+  <table>
+    <tr><th>模式</th><th>说明</th></tr>
+    <tr><td>姿态模式（Stabilize）</td><td>仅保持姿态平衡，会漂移，不自动定位。初学建议此模式起飞。</td></tr>
+    <tr><td>定高（AltHold）</td><td>自动保持高度。</td></tr>
+    <tr><td>GPS 模式（Loiter）</td><td>GNSS 定位，可任意高度自动定位悬停。</td></tr>
+    <tr><td>定点（PosHold）</td><td>位置保持，手感更直接。</td></tr>
+    <tr><td>返航（RTL）</td><td>自动飞回起飞点并降落。</td></tr>
+    <tr><td>自动（Auto）</td><td>执行预设航线任务。</td></tr>
+    <tr><td>降落（Land）</td><td>原地自动降落。</td></tr>
+    <tr><td>指引（Guided / RTK）</td><td>接受地面站指点飞行 / 电子桩。</td></tr>
+  </table>
+
+  <h3>附录 B · 术语表</h3>
+  <table>
+    <tr><th>术语</th><th>含义</th><th>术语</th><th>含义</th></tr>
+    <tr><td>解锁 / 上锁</td><td>使电机可转 / 停转</td><td>航点 / 航线</td><td>路径点 / 路径</td></tr>
+    <tr><td>返航高度</td><td>RTL 爬升目标高</td><td>电子围栏</td><td>限定飞行范围</td></tr>
+    <tr><td>失控保护</td><td>遥控失联时动作</td><td>电子桩</td><td>绕八字虚拟标桩</td></tr>
+    <tr><td>HS / VS</td><td>水平 / 垂直速度</td><td>RTK</td><td>高精度差分定位</td></tr>
+  </table>
+
+  <h3>附录 C · 指示灯速查（X6PRO）</h3>
+  <table>
+    <tr><th>状态</th><th>指示灯</th><th>状态</th><th>指示灯</th></tr>
+    <tr><td>遥控器未连接</td><td>黄灯快闪</td><td>返航模式</td><td>蓝灯慢闪</td></tr>
+    <tr><td>已连接·GPS未定位</td><td>黄灯慢闪</td><td>降落模式</td><td>紫灯慢闪</td></tr>
+    <tr><td>已连接·GPS已定位</td><td>绿灯慢闪</td><td>一级电压报警</td><td>黄灯快闪</td></tr>
+    <tr><td>姿态模式（解锁）</td><td>黄灯慢闪</td><td>二级电压报警</td><td>红灯快闪</td></tr>
+    <tr><td>GPS 模式（解锁）</td><td>绿灯慢闪</td><td>指南针校准中</td><td>蓝/紫灯慢闪</td></tr>
+  </table>
+
+  <div style="margin-top:12mm; padding-top:5mm; border-top:2px solid var(--line); color:var(--mut); font-size:9.5pt">
+    <b style="color:var(--navy)">中影智能 无人机地面控制站</b> · 使用手册 V1.0<br/>
+    适用飞控：APM / ArduPilot（翎客 X6PRO）· 连接方式：仿真 / 串口 / UDP / TCP<br/>
+    本手册配图均为软件真实界面截图。飞行有风险，操作需规范，请在教练指导下进行。
+  </div>
+</section>
+
+</body>
+</html>

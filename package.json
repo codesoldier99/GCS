@@ -1,0 +1,59 @@
+{
+  "name": "zhongying-zhineng-gcs",
+  "version": "0.1.0",
+  "description": "无人机培训学校地面控制站 (APM/ArduPilot) — 标志 i-Cockpit 风格",
+  "author": "中影智能",
+  "license": "MIT",
+  "main": "out/main/main.js",
+  "type": "module",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "start": "electron-vite preview",
+    "build": "electron-vite build",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "dist": "electron-vite build && electron-builder --win",
+    "dist:dir": "electron-vite build && electron-builder --dir"
+  },
+  "dependencies": {
+    "maplibre-gl": "^4.7.1",
+    "mavlink-mappings": "^1.0.10-20240817",
+    "node-mavlink": "^2.1.2",
+    "serialport": "^12.0.0",
+    "zustand": "^5.0.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.9",
+    "@types/react": "^18.3.14",
+    "@types/react-dom": "^18.3.3",
+    "@vitejs/plugin-react": "^4.3.4",
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8",
+    "electron-vite": "^2.3.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "typescript": "^5.7.2",
+    "vite": "^5.4.11"
+  },
+  "build": {
+    "appId": "com.zhongying.gcs",
+    "productName": "中影智能",
+    "directories": { "output": "release" },
+    "files": ["out/**/*"],
+    "afterPack": "build/afterPack.cjs",
+    "win": {
+      "target": ["nsis", "zip"],
+      "icon": "build/icon.ico",
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "${productName}-${version}-Setup.${ext}",
+      "shortcutName": "中影智能",
+      "createDesktopShortcut": true
+    },
+    "mac": { "target": ["dmg"] },
+    "linux": { "target": ["AppImage"] }
+  }
+}
