@@ -31,17 +31,25 @@
     "electron-vite": "^2.3.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "resedit": "^3.0.2",
     "typescript": "^5.7.2",
     "vite": "^5.4.11"
   },
   "build": {
     "appId": "com.zhongying.gcs",
     "productName": "中影智能",
-    "directories": { "output": "release" },
-    "files": ["out/**/*"],
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "out/**/*"
+    ],
     "afterPack": "build/afterPack.cjs",
     "win": {
-      "target": ["nsis", "zip"],
+      "target": [
+        "nsis",
+        "zip"
+      ],
       "icon": "build/icon.ico",
       "signAndEditExecutable": false
     },
@@ -53,7 +61,15 @@
       "shortcutName": "中影智能",
       "createDesktopShortcut": true
     },
-    "mac": { "target": ["dmg"] },
-    "linux": { "target": ["AppImage"] }
+    "mac": {
+      "target": [
+        "dmg"
+      ]
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ]
+    }
   }
 }
