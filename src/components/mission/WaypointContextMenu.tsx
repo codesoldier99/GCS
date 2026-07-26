@@ -17,6 +17,8 @@ export function WaypointContextMenu({ seq, x, y, onClose }: Props): JSX.Element 
   const deleteWaypoint = useMission((s) => s.deleteWaypoint)
   const openDialog = useMission((s) => s.openDialog)
   const setPendingBase = useMission((s) => s.setPendingBase)
+  const setWaypointAsHome = useMission((s) => s.setWaypointAsHome)
+  const setWaypointAsReturn = useMission((s) => s.setWaypointAsReturn)
 
   useEffect(() => {
     const onDown = (e: MouseEvent): void => {
@@ -72,6 +74,9 @@ export function WaypointContextMenu({ seq, x, y, onClose }: Props): JSX.Element 
         setPendingBase(`wp${seq}`)
         openDialog('relcoord')
       })}
+      <div style={{ height: 1, background: 'var(--stroke)', margin: '4px 6px' }} />
+      {item('home', '设为起飞点（从航线移出）', () => setWaypointAsHome(seq))}
+      {item('rtl', '设为返航点', () => setWaypointAsReturn(seq))}
       <div style={{ height: 1, background: 'var(--stroke)', margin: '4px 6px' }} />
       {item('trash', '删除此点', () => deleteWaypoint(seq), true)}
     </div>

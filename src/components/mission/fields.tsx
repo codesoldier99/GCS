@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Icon } from '../Icon'
 import { clamp, LIMITS } from '../../util/limits'
 import { toDMS, fromDMS, type Dms } from '../../util/dms'
@@ -15,6 +15,78 @@ export function Field({ label, hint, children }: { label: string; hint?: string;
   )
 }
 
+/** 清理浮点误差/超长小数（如 bearing/destination 计算产生的 113.40023570403581999…）后转字符串。 */
+function formatNum(v: number, decimals?: number): string {
+  if (!Number.isFinite(v)) return ''
+  const d = decimals ?? 6
+  const fixed = parseFloat(v.toFixed(d))
+  return String(fixed)
+}
+
+/**
+ * 数字输入的"缓冲文本"逻辑：输入框聚焦时只维护本地字符串，允许 ""/"-"/"1." 这类
+ * 打字中间态，不会被外部 value 或 clamp 打断；失焦/回车时才最终解析+限位+回写。
+ * 这是修复"打字打到一半被强制吸回最小值/清空"这类"某某参数无法设置"问题的根因所在。
+ */
+function useBufferedNumber(
+  value: number,
+  onChange: (v: number) => void,
+  opts: { min?: number; max?: number; decimals?: number }
+): {
+  text: string
+  onFocus: () => void
+  onChangeText: (raw: string) => void
+  onBlur: () => void
+  onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void
+  step: (dir: 1 | -1, amount: number) => void
+} {
+  const [text, setText] = useState(() => formatNum(value, opts.decimals))
+  const [focused, setFocused] = useState(false)
+
+  useEffect(() => {
+    if (!focused) setText(formatNum(value, opts.decimals))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value, opts.decimals, focused])
+
+  const commit = (raw: string): void => {
+    const n = parseFloat(raw)
+    if (Number.isFinite(n)) {
+      const c = clamp(n, opts.min, opts.max)
+      onChange(c)
+      setText(formatNum(c, opts.decimals))
+    } else {
+      setText(formatNum(value, opts.decimals)) // 无效输入：还原为上一个有效值，而不是强行吸到 min
+    }
+  }
+
+  return {
+    text,
+    onFocus: () => setFocused(true),
+    onChangeText: (raw) => {
+      setText(raw)
+      // 只有输入本身已是"完整合法数字"时才实时回传给外部（驱动地图预览等联动）；
+      // ""、"-"、"1." 这类中间态留在本地缓冲区里，不打扰外部状态。
+      if (/^-?\d+\.?\d*$/.test(raw)) {
+        const n = parseFloat(raw)
+        if (Number.isFinite(n)) onChange(clamp(n, opts.min, opts.max))
+      }
+    },
+    onBlur: () => {
+      setFocused(false)
+      commit(text)
+    },
+    onKeyDown: (e) => {
+      if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
+    },
+    step: (dir, amount) => {
+      const cur = Number.isFinite(parseFloat(text)) ? parseFloat(text) : value
+      const next = clamp(Math.round((cur + dir * amount) * 1e6) / 1e6, opts.min, opts.max)
+      onChange(next)
+      setText(formatNum(next, opts.decimals))
+    }
+  }
+}
+
 export function NumberInput({
   value,
   onChange,
@@ -22,8 +94,8 @@ export function NumberInput({
   min,
   max,
   unit,
-  suffix,
-  disabled
+  disabled,
+  decimals
 }: {
   value: number
   onChange: (v: number) => void
@@ -31,32 +103,53 @@ export function NumberInput({
   min?: number
   max?: number
   unit?: string
-  suffix?: ReactNode
   disabled?: boolean
+  /** 显示精度（小数位）；经纬度等长小数字段建议传 6~7，避免出现十几位小数。 */
+  decimals?: number
 }) {
+  const buf = useBufferedNumber(value, onChange, { min, max, decimals })
   return (
     <div style={{ position: 'relative', display: 'flex', alignItems: 'center', opacity: disabled ? 0.45 : 1 }}>
       <input
         className="m-fld"
-        type="number"
-        value={Number.isFinite(value) ? value : 0}
-        step={step}
-        min={min}
-        max={max}
+        type="text"
+        inputMode="decimal"
+        value={buf.text}
         disabled={disabled}
-        // 原生 <input type=number> 的 min/max 只影响步进箭头与校验样式，不阻止直接键入越界值；
-        // 这里在 onChange 时真正 clamp 到范围内，才能满足"超出数值无法输入"的限位要求。
-        onChange={(e) => {
-          const raw = parseFloat(e.target.value)
-          onChange(Number.isFinite(raw) ? clamp(raw, min, max) : (min ?? 0))
-        }}
+        onFocus={buf.onFocus}
+        onChange={(e) => buf.onChangeText(e.target.value)}
+        onBlur={buf.onBlur}
+        onKeyDown={buf.onKeyDown}
+        style={{ paddingRight: unit ? 66 : 46 }}
       />
       {unit && (
-        <span style={{ position: 'absolute', right: suffix ? 34 : 10, fontSize: 11, color: 'var(--text-lo)' }}>
+        <span style={{ position: 'absolute', right: 46, fontSize: 11, color: 'var(--text-lo)', pointerEvents: 'none' }}>
           {unit}
         </span>
       )}
-      {suffix}
+      {/* 原生 spinner 箭头太小难点中（反馈原文），改用更大的自绘 +/- 按钮 */}
+      <div style={{ position: 'absolute', right: 3, display: 'flex', gap: 2 }}>
+        <button
+          type="button"
+          tabIndex={-1}
+          className="m-stepper"
+          disabled={disabled}
+          onClick={() => buf.step(-1, step)}
+          aria-label="减少"
+        >
+          <Icon name="minus" size={12} />
+        </button>
+        <button
+          type="button"
+          tabIndex={-1}
+          className="m-stepper"
+          disabled={disabled}
+          onClick={() => buf.step(1, step)}
+          aria-label="增加"
+        >
+          <Icon name="plus" size={12} />
+        </button>
+      </div>
     </div>
   )
 }
@@ -97,28 +190,9 @@ export function LatLonField({
       </div>
       {dms ? (
         <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-          <input
-            className="m-fld"
-            type="number"
-            style={{ width: 0, flex: 1.1 }}
-            value={d.deg}
-            onChange={(e) => setPart({ deg: clamp(parseFloat(e.target.value) || 0, 0, axis === 'lat' ? 90 : 180) })}
-          />
-          <input
-            className="m-fld"
-            type="number"
-            style={{ width: 0, flex: 1 }}
-            value={d.min}
-            onChange={(e) => setPart({ min: clamp(parseFloat(e.target.value) || 0, 0, 59) })}
-          />
-          <input
-            className="m-fld"
-            type="number"
-            step={0.1}
-            style={{ width: 0, flex: 1.3 }}
-            value={+d.sec.toFixed(1)}
-            onChange={(e) => setPart({ sec: clamp(parseFloat(e.target.value) || 0, 0, 59.999) })}
-          />
+          <DmsPartInput value={d.deg} min={0} max={axis === 'lat' ? 90 : 180} onChange={(v) => setPart({ deg: v })} flex={1.1} />
+          <DmsPartInput value={d.min} min={0} max={59} onChange={(v) => setPart({ min: v })} flex={1} />
+          <DmsPartInput value={d.sec} min={0} max={59.999} decimals={1} onChange={(v) => setPart({ sec: v })} flex={1.3} />
           <select
             className="m-fld"
             style={{ width: 54, flexShrink: 0 }}
@@ -133,9 +207,42 @@ export function LatLonField({
           </select>
         </div>
       ) : (
-        <NumberInput value={value} step={0.000001} min={min} max={max} onChange={onChange} />
+        // 十进制经纬度只显示 7 位小数（约 1cm 精度），避免 bearing/destination 计算带来的十几位小数
+        <NumberInput value={value} step={0.000001} min={min} max={max} decimals={7} onChange={onChange} />
       )}
     </div>
+  )
+}
+
+/** 度分秒编辑器里的单个数字格（度/分/秒），复用缓冲输入逻辑避免打字被清空/吸到 0。 */
+function DmsPartInput({
+  value,
+  min,
+  max,
+  decimals = 0,
+  flex,
+  onChange
+}: {
+  value: number
+  min: number
+  max: number
+  decimals?: number
+  flex: number
+  onChange: (v: number) => void
+}) {
+  const buf = useBufferedNumber(value, onChange, { min, max, decimals })
+  return (
+    <input
+      className="m-fld"
+      type="text"
+      inputMode="decimal"
+      style={{ width: 0, flex }}
+      value={buf.text}
+      onFocus={buf.onFocus}
+      onChange={(e) => buf.onChangeText(e.target.value)}
+      onBlur={buf.onBlur}
+      onKeyDown={buf.onKeyDown}
+    />
   )
 }
 
@@ -150,7 +257,7 @@ export function Select<T extends string | number>({
 }: {
   value: T
   onChange: (v: T) => void
-  options: { value: T; label: string }[]
+  options: { value: T; label: string; disabled?: boolean }[]
 }) {
   return (
     <select
@@ -163,7 +270,7 @@ export function Select<T extends string | number>({
       }}
     >
       {options.map((o) => (
-        <option key={String(o.value)} value={String(o.value)}>
+        <option key={String(o.value)} value={String(o.value)} disabled={o.disabled}>
           {o.label}
         </option>
       ))}
@@ -276,5 +383,10 @@ export const fieldStyles = `
   .m-fld{width:100%;padding:8px 10px;border-radius:var(--r-sm);border:1px solid var(--stroke);
     background:var(--bg-0);color:var(--text-hi);font-size:13.5px;font-family:var(--font-ui);outline:none}
   .m-fld:focus{border-color:var(--primary);box-shadow:0 0 0 1px var(--primary-dim)}
-  input.m-fld[type=number]{font-family:var(--font-num)}
+  input.m-fld[inputmode=decimal]{font-family:var(--font-num)}
+  .m-stepper{width:20px;height:24px;display:grid;place-items:center;border-radius:4px;
+    color:var(--text-mid);background:var(--bg-2);border:1px solid var(--stroke-soft)}
+  .m-stepper:hover{color:var(--primary);border-color:var(--primary)}
+  .m-stepper:active{background:var(--primary-dim)}
+  .m-stepper:disabled{opacity:.4;pointer-events:none}
 `

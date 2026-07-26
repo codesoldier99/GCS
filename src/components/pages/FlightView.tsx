@@ -6,6 +6,7 @@ import { BottomInstrumentBar } from '../layout/BottomInstrumentBar'
 import { MapToolbar } from '../layout/MapToolbar'
 import { ActionDock } from '../layout/ActionDock'
 import { MissionOverlay } from '../mission/MissionOverlay'
+import { TemplatePreviewOverlay } from '../mission/TemplatePreviewOverlay'
 import { WaypointToolbar } from '../mission/WaypointToolbar'
 import { RoutePanel } from '../mission/RoutePanel'
 import { MissionDialogs } from '../mission/MissionDialogs'
@@ -34,9 +35,9 @@ export function FlightView({ mode }: { mode: 'manual' | 'mission' | 'sim' }): JS
         {mode === 'mission' || mode === 'sim' ? (
           <>
             <MissionOverlay />
+            <TemplatePreviewOverlay />
             <RoutePanel />
             <WaypointToolbar />
-            <MapToolbar corner="br" />
             <ActionDock left={324} />
             <MissionDialogs />
           </>

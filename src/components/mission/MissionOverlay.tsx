@@ -4,10 +4,12 @@ import type { Map as MlMap } from 'maplibre-gl'
 import { useMapStore } from '../../state/mapStore'
 import { useMission } from '../../state/missionStore'
 import { useVehicle } from '../../state/vehicleStore'
-import { haversine, bearing } from '../../util/geo'
-import { getEffectiveHome } from '../../util/effectiveHome'
+import { haversine, bearing, type LL } from '../../util/geo'
+import { getEffectiveHome, getEffectiveReturnPoint } from '../../util/effectiveHome'
+import { toMapLngLat, fromMapLngLat } from '../../util/coordTransform'
 import { C } from '../../theme/tokens'
 import { WaypointContextMenu } from './WaypointContextMenu'
+import { MapContextMenu } from './MapContextMenu'
 
 interface WpMarker extends Marker {
   _seq?: number
@@ -19,14 +21,30 @@ const EMPTY: GeoJSON.Feature = {
   properties: {}
 }
 
+/** 目标元素是否是可编辑输入控件——键盘快捷键在这些元素里应放行，交给浏览器原生编辑行为。 */
+function isEditableTarget(el: EventTarget | null): boolean {
+  if (!(el instanceof HTMLElement)) return false
+  const tag = el.tagName
+  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable
+}
+
 export function MissionOverlay(): JSX.Element | null {
   const map = useMapStore((s) => s.map)
   const ready = useMapStore((s) => s.ready)
   const wpRef = useRef<WpMarker[]>([])
   const labelRef = useRef<Marker[]>([])
   const homeMarkerRef = useRef<Marker | null>(null)
+  const returnMarkerRef = useRef<Marker | null>(null)
   const draggingSeq = useRef<number | null>(null)
   const [ctxMenu, setCtxMenu] = useState<{ seq: number; x: number; y: number } | null>(null)
+  const [mapCtx, setMapCtx] = useState<{ lat: number; lon: number; x: number; y: number } | null>(null)
+
+  // 供地图 effect 里的 Esc 处理读取"当前是否有右键菜单打开"，而不必把 ctxMenu/mapCtx
+  // 放进 effect 依赖数组（那样每次开关菜单都要重新绑定一遍地图事件，成本不必要地高）。
+  const ctxMenuOpenRef = useRef(false)
+  const mapCtxOpenRef = useRef(false)
+  ctxMenuOpenRef.current = ctxMenu != null
+  mapCtxOpenRef.current = mapCtx != null
 
   useEffect(() => {
     if (!map || !ready) return
@@ -74,16 +92,16 @@ export function MissionOverlay(): JSX.Element | null {
       marker.on('drag', () => {
         // 拖拽中只更新折线预览，不写 store：写 store 会触发整店订阅 rebuild，
         // 把这个正在被拖拽的 marker 按旧坐标 setLngLat 回去，导致"拖不动"。
-        const ll = marker.getLngLat()
-        if (marker._seq) liveLine(map, marker._seq, ll.lat, ll.lng)
+        const ll = fromMapLngLat(marker.getLngLat().lat, marker.getLngLat().lng)
+        if (marker._seq) liveLine(map, marker._seq, ll.lat, ll.lon)
       })
       marker.on('dragend', () => {
         el.style.cursor = 'grab'
-        const ll = marker.getLngLat()
+        const ll = fromMapLngLat(marker.getLngLat().lat, marker.getLngLat().lng)
         const seq = marker._seq
         draggingSeq.current = null
         if (seq) {
-          useMission.getState().moveWaypoint(seq, ll.lat, ll.lng)
+          useMission.getState().moveWaypoint(seq, ll.lat, ll.lon)
           // MapLibre 在检测到拖拽位移后会吞掉随之而来的 click，这里兜底确保拖完即选中，
           // 单航点编辑面板才能可靠弹出。
           useMission.getState().select(seq)
@@ -92,7 +110,8 @@ export function MissionOverlay(): JSX.Element | null {
       return marker
     }
 
-    const render = (): void => rebuild(map, wpRef.current, labelRef.current, homeMarkerRef, draggingSeq.current, createWpMarker)
+    const render = (): void =>
+      rebuild(map, wpRef.current, labelRef.current, homeMarkerRef, returnMarkerRef, draggingSeq.current, createWpMarker)
 
     const unsubM = useMission.subscribe(render)
     const unsubV = useVehicle.subscribe((s, p) => {
@@ -101,31 +120,80 @@ export function MissionOverlay(): JSX.Element | null {
 
     const onClick = (e: maplibregl.MapMouseEvent): void => {
       const st = useMission.getState()
+      const ll = fromMapLngLat(e.lngLat.lat, e.lngLat.lng)
       if (st.setHomeMode) {
-        st.setHomeOverride({ lat: e.lngLat.lat, lon: e.lngLat.lng })
+        st.setHomeOverride(ll)
         return
       }
-      if (st.addMode) st.addWaypoint(e.lngLat.lat, e.lngLat.lng)
+      if (st.setReturnMode) {
+        st.setReturnCustom(ll)
+        return
+      }
+      if (st.addMode) st.addWaypoint(ll.lat, ll.lon)
+    }
+    const onContext = (e: maplibregl.MapMouseEvent): void => {
+      // 航点/起飞点/返航点 marker 自己的 contextmenu 监听会 stopPropagation，
+      // 冒泡到这里的只会是"点在地图空白处"的情况。
+      e.originalEvent.preventDefault()
+      const ll = fromMapLngLat(e.lngLat.lat, e.lngLat.lng)
+      setMapCtx({ lat: ll.lat, lon: ll.lon, x: e.originalEvent.clientX, y: e.originalEvent.clientY })
     }
     const onFit = (): void => fitToMission(map)
     map.on('click', onClick)
+    map.on('contextmenu', onContext)
     window.addEventListener('mission-fit', onFit)
     render()
+
+    // 键盘快捷键：Ctrl/Cmd+Z 撤销、Ctrl/Cmd+Shift+Z 或 Ctrl/Cmd+Y 重做、
+    // Delete/Backspace 删除选中航点、Esc 退出当前落点模式/关闭菜单/取消选中。
+    const onKeyDown = (e: KeyboardEvent): void => {
+      if (isEditableTarget(e.target)) return
+      const st = useMission.getState()
+      const mod = e.ctrlKey || e.metaKey
+      if (mod && e.key.toLowerCase() === 'z') {
+        e.preventDefault()
+        if (e.shiftKey) st.redo()
+        else st.undo()
+        return
+      }
+      if (mod && e.key.toLowerCase() === 'y') {
+        e.preventDefault()
+        st.redo()
+        return
+      }
+      if ((e.key === 'Delete' || e.key === 'Backspace') && typeof st.selected === 'number') {
+        e.preventDefault()
+        st.deleteWaypoint(st.selected)
+        return
+      }
+      if (e.key === 'Escape') {
+        if (ctxMenuOpenRef.current || mapCtxOpenRef.current) return // 交给菜单自己的 Esc 监听关闭
+        if (st.addMode) st.setAddMode(false)
+        else if (st.setHomeMode) st.toggleSetHomeMode(false)
+        else if (st.setReturnMode) st.toggleSetReturnMode(false)
+        else if (st.selected != null) st.select(null)
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
 
     return () => {
       unsubM()
       unsubV()
       window.removeEventListener('mission-fit', onFit)
+      window.removeEventListener('keydown', onKeyDown)
       wpRef.current.forEach((m) => m.remove())
       labelRef.current.forEach((m) => m.remove())
       homeMarkerRef.current?.remove()
+      returnMarkerRef.current?.remove()
       wpRef.current = []
       labelRef.current = []
       homeMarkerRef.current = null
+      returnMarkerRef.current = null
       // sibling 组件（FlightMap）可能已先执行 map.remove()，此时地图内部状态已销毁，
       // 后续调用会抛异常；这里静默降级，避免路由切换期间的竞态把渲染树打崩（黑屏/卡死）。
       try {
         map.off('click', onClick)
+        map.off('contextmenu', onContext)
         for (const id of ['mission-line', 'mission-glow']) if (map.getLayer(id)) map.removeLayer(id)
         if (map.getSource('mission')) map.removeSource('mission')
       } catch {
@@ -134,9 +202,14 @@ export function MissionOverlay(): JSX.Element | null {
     }
   }, [map, ready])
 
-  return ctxMenu ? (
-    <WaypointContextMenu seq={ctxMenu.seq} x={ctxMenu.x} y={ctxMenu.y} onClose={() => setCtxMenu(null)} />
-  ) : null
+  return (
+    <>
+      {ctxMenu && <WaypointContextMenu seq={ctxMenu.seq} x={ctxMenu.x} y={ctxMenu.y} onClose={() => setCtxMenu(null)} />}
+      {mapCtx && (
+        <MapContextMenu lat={mapCtx.lat} lon={mapCtx.lon} x={mapCtx.x} y={mapCtx.y} onClose={() => setMapCtx(null)} />
+      )}
+    </>
+  )
 }
 
 function makeWpEl(): HTMLDivElement {
@@ -168,18 +241,30 @@ function makeHomeEl(): HTMLDivElement {
   return el
 }
 
+function makeReturnEl(): HTMLDivElement {
+  const el = document.createElement('div')
+  el.style.cssText =
+    'width:22px;height:22px;border-radius:50%;display:grid;place-items:center;' +
+    'background:' + C.primary + ';border:2px solid #04121a;box-shadow:0 0 10px ' + C.primary + '99;cursor:grab;'
+  el.innerHTML = '<span style="color:#04121a;font-size:10.5px;font-weight:700;line-height:1">R</span>'
+  return el
+}
+
 function rebuild(
   map: MlMap,
   wpMarkers: WpMarker[],
   labels: Marker[],
   homeMarkerRef: React.MutableRefObject<Marker | null>,
+  returnMarkerRef: React.MutableRefObject<Marker | null>,
   draggingSeq: number | null,
   createWpMarker: () => WpMarker
 ): void {
   const { mission, selected, homeOverride } = useMission.getState()
   const waypoints = mission.waypoints
   const home = getEffectiveHome()
+  const returnPt = getEffectiveReturnPoint()
   const telHome = useVehicle.getState().frame.home
+  const returnDiffers = mission.returnPointMode !== 'home'
 
   // ---- 航点标记 reconcile ----
   while (wpMarkers.length < waypoints.length) wpMarkers.push(createWpMarker())
@@ -188,48 +273,92 @@ function rebuild(
   waypoints.forEach((w, i) => {
     const m = wpMarkers[i]
     m._seq = w.seq
-    if (w.seq !== draggingSeq) m.setLngLat([w.lon, w.lat])
+    if (w.seq !== draggingSeq) m.setLngLat(toMapLngLat(w))
     const el = m.getElement()
     const sel = selected === w.seq
+    const isReturnRef = mission.returnPointMode === 'waypoint' && mission.returnWaypointSeq === w.seq
     el.style.background = sel ? C.accent : C.success
-    el.style.boxShadow = sel ? `0 0 0 3px ${C.accent}66, 0 2px 6px rgba(0,0,0,.5)` : '0 2px 6px rgba(0,0,0,.5)'
+    el.style.boxShadow = sel
+      ? `0 0 0 3px ${C.accent}66, 0 2px 6px rgba(0,0,0,.5)`
+      : isReturnRef
+        ? `0 0 0 3px ${C.primary}88, 0 2px 6px rgba(0,0,0,.5)`
+        : '0 2px 6px rgba(0,0,0,.5)'
     el.textContent = String(w.seq)
   })
 
   // ---- 手动起飞点标记：只在没有真实遥测 home、且用户已手动设置时显示 ----
-  const showOverride = !telHome && !!homeOverride
-  if (showOverride && !homeMarkerRef.current) {
+  const showHomeOverride = !telHome && !!homeOverride
+  if (showHomeOverride && !homeMarkerRef.current) {
     const el = makeHomeEl()
     const marker = new maplibregl.Marker({ element: el, draggable: true })
-      .setLngLat([homeOverride!.lon, homeOverride!.lat])
+      .setLngLat(toMapLngLat(homeOverride!))
       .addTo(map)
+    el.addEventListener('click', (e) => {
+      e.stopPropagation()
+      useMission.getState().select('home')
+    })
+    el.addEventListener('contextmenu', (e) => {
+      e.preventDefault()
+      e.stopPropagation()
+      useMission.getState().select('home')
+    })
     marker.on('dragend', () => {
-      const ll = marker.getLngLat()
-      useMission.getState().setHomeOverride({ lat: ll.lat, lon: ll.lng })
+      useMission.getState().setHomeOverride(fromMapLngLat(marker.getLngLat().lat, marker.getLngLat().lng))
     })
     homeMarkerRef.current = marker
-  } else if (!showOverride && homeMarkerRef.current) {
+  } else if (!showHomeOverride && homeMarkerRef.current) {
     homeMarkerRef.current.remove()
     homeMarkerRef.current = null
   }
-  if (showOverride && homeOverride) homeMarkerRef.current?.setLngLat([homeOverride.lon, homeOverride.lat])
+  if (showHomeOverride && homeOverride) homeMarkerRef.current?.setLngLat(toMapLngLat(homeOverride))
+
+  // ---- 自定义返航点标记：仅 returnPointMode==='custom' 时单独画一个点 ----
+  const showReturnMarker = mission.returnPointMode === 'custom' && mission.returnLat != null && mission.returnLon != null
+  if (showReturnMarker && !returnMarkerRef.current) {
+    const el = makeReturnEl()
+    const marker = new maplibregl.Marker({ element: el, draggable: true })
+      .setLngLat(toMapLngLat({ lat: mission.returnLat!, lon: mission.returnLon! }))
+      .addTo(map)
+    el.addEventListener('click', (e) => {
+      e.stopPropagation()
+      useMission.getState().select('return')
+    })
+    el.addEventListener('contextmenu', (e) => {
+      e.preventDefault()
+      e.stopPropagation()
+      useMission.getState().select('return')
+    })
+    marker.on('dragend', () => {
+      useMission.getState().setReturnCustom(fromMapLngLat(marker.getLngLat().lat, marker.getLngLat().lng))
+    })
+    returnMarkerRef.current = marker
+  } else if (!showReturnMarker && returnMarkerRef.current) {
+    returnMarkerRef.current.remove()
+    returnMarkerRef.current = null
+  }
+  if (showReturnMarker) returnMarkerRef.current?.setLngLat(toMapLngLat({ lat: mission.returnLat!, lon: mission.returnLon! }))
 
   // ---- 航线折线 ----
-  const pts: [number, number][] = []
-  if (home && waypoints.length) pts.push([home.lon, home.lat])
-  waypoints.forEach((w) => pts.push([w.lon, w.lat]))
+  // 注意：这里全程用 WGS84 参与距离/方位角计算（haversine/bearing 需要真实坐标才准确），
+  // 只在最终喂给 MapLibre 的 setLine/setLngLat 里转换成当前底图坐标系，见 setLine() 实现。
+  const pts: LL[] = []
+  if (home && waypoints.length) pts.push(home)
+  waypoints.forEach((w) => pts.push({ lat: w.lat, lon: w.lon }))
   const { closed } = mission
-  if (closed && waypoints.length > 1) pts.push([waypoints[0].lon, waypoints[0].lat])
+  if (closed && waypoints.length > 1) pts.push({ lat: waypoints[0].lat, lon: waypoints[0].lon })
+  else if (returnDiffers && returnPt && waypoints.length) pts.push(returnPt)
   setLine(map, pts)
 
   // ---- 分段标签 (距离 | 速度 | 航向) ----
-  const segs: { mid: [number, number]; text: string }[] = []
+  const segs: { mid: LL; text: string }[] = []
   const seq: { lat: number; lon: number; speed: number }[] = []
   if (home && waypoints.length) seq.push({ lat: home.lat, lon: home.lon, speed: waypoints[0].speed })
   waypoints.forEach((w) => seq.push({ lat: w.lat, lon: w.lon, speed: w.speed }))
   if (closed && waypoints.length > 1) {
     const w0 = waypoints[0]
     seq.push({ lat: w0.lat, lon: w0.lon, speed: w0.speed })
+  } else if (returnDiffers && returnPt && waypoints.length) {
+    seq.push({ lat: returnPt.lat, lon: returnPt.lon, speed: mission.returnSpeed })
   }
   for (let i = 0; i < seq.length - 1; i++) {
     const a = seq[i]
@@ -237,7 +366,7 @@ function rebuild(
     const d = haversine(a, b)
     const brg = bearing(a, b)
     segs.push({
-      mid: [(a.lon + b.lon) / 2, (a.lat + b.lat) / 2],
+      mid: { lat: (a.lat + b.lat) / 2, lon: (a.lon + b.lon) / 2 },
       text: `${d.toFixed(1)}m | ${b.speed.toFixed(1)}m/s | ${brg.toFixed(0)}°`
     })
   }
@@ -246,27 +375,36 @@ function rebuild(
   }
   while (labels.length > segs.length) labels.pop()!.remove()
   segs.forEach((s, i) => {
-    labels[i].setLngLat(s.mid)
+    labels[i].setLngLat(toMapLngLat(s.mid))
     labels[i].getElement().textContent = s.text
   })
 }
 
-function setLine(map: MlMap, coords: [number, number][]): void {
+/** 写航线折线：入参始终是 WGS84，这里统一转换到当前底图坐标系再喂给 MapLibre。 */
+function setLine(map: MlMap, coords: LL[]): void {
   const src = map.getSource('mission') as maplibregl.GeoJSONSource | undefined
-  src?.setData({ type: 'Feature', geometry: { type: 'LineString', coordinates: coords }, properties: {} })
+  src?.setData({
+    type: 'Feature',
+    geometry: { type: 'LineString', coordinates: coords.map(toMapLngLat) },
+    properties: {}
+  })
 }
 
-/** 拖拽中实时更新折线（不写 store，避免历史污染 + 避免整店订阅把 marker 拽回旧坐标） */
+/** 拖拽中实时更新折线（不写 store，避免历史污染 + 避免整店订阅把 marker 拽回旧坐标）。lat/lon 是 WGS84。 */
 function liveLine(map: MlMap, seq: number, lat: number, lon: number): void {
   const { mission } = useMission.getState()
   const waypoints = mission.waypoints
   const home = getEffectiveHome()
-  const pts: [number, number][] = []
-  if (home && waypoints.length) pts.push([home.lon, home.lat])
-  waypoints.forEach((w) => pts.push(w.seq === seq ? [lon, lat] : [w.lon, w.lat]))
+  const returnPt = getEffectiveReturnPoint()
+  const dragged: LL = { lat, lon }
+  const pts: LL[] = []
+  if (home && waypoints.length) pts.push(home)
+  waypoints.forEach((w) => pts.push(w.seq === seq ? dragged : { lat: w.lat, lon: w.lon }))
   if (mission.closed && waypoints.length > 1) {
     const w0 = waypoints[0]
-    pts.push(w0.seq === seq ? [lon, lat] : [w0.lon, w0.lat])
+    pts.push(w0.seq === seq ? dragged : { lat: w0.lat, lon: w0.lon })
+  } else if (mission.returnPointMode !== 'home' && returnPt && waypoints.length) {
+    pts.push(mission.returnPointMode === 'waypoint' && mission.returnWaypointSeq === seq ? dragged : returnPt)
   }
   setLine(map, pts)
 }
@@ -274,9 +412,12 @@ function liveLine(map: MlMap, seq: number, lat: number, lon: number): void {
 function fitToMission(map: MlMap): void {
   const waypoints = useMission.getState().mission.waypoints
   const home = getEffectiveHome()
-  const all: [number, number][] = waypoints.map((w) => [w.lon, w.lat])
-  if (home) all.push([home.lon, home.lat])
-  if (all.length === 0) return
+  const returnPt = getEffectiveReturnPoint()
+  const wgs: LL[] = waypoints.map((w) => ({ lat: w.lat, lon: w.lon }))
+  if (home) wgs.push(home)
+  if (returnPt && (returnPt.lat !== home?.lat || returnPt.lon !== home?.lon)) wgs.push(returnPt)
+  if (wgs.length === 0) return
+  const all = wgs.map(toMapLngLat)
   if (all.length === 1) {
     map.easeTo({ center: all[0], zoom: 17, duration: 400 })
     return

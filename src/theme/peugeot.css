@@ -48,7 +48,7 @@
   --shadow-panel: 0 18px 48px rgba(0, 0, 0, 0.55);
   --shadow-glow: 0 0 18px var(--primary-glow);
 
-  --bar-h: 58px; /* 顶部遥测栏高 */
+  --bar-h: 66px; /* 顶部遥测栏高（户外大字号需求，参考建议2.pdf） */
   --title-h: 40px;
 
   /* 动效令牌 */

@@ -19,16 +19,16 @@ function Stat({
   sub?: string
 }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '0 14px', minWidth: 0 }}>
-      <Icon name={icon} size={19} style={{ color: color ?? 'var(--text-lo)', flexShrink: 0 }} />
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0 15px', minWidth: 0 }}>
+      <Icon name={icon} size={22} style={{ color: color ?? 'var(--text-lo)', flexShrink: 0 }} />
       <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.15, minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 3 }}>
-          <span className="readout" style={{ fontSize: 16, color: color ?? 'var(--text-hi)' }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+          <span className="readout" style={{ fontSize: 20, fontWeight: 700, color: color ?? 'var(--text-hi)' }}>
             {value}
           </span>
-          {unit && <span style={{ fontSize: 10, color: 'var(--text-lo)' }}>{unit}</span>}
+          {unit && <span style={{ fontSize: 12, color: 'var(--text-mid)' }}>{unit}</span>}
         </div>
-        <span style={{ fontSize: 10, color: 'var(--text-lo)', whiteSpace: 'nowrap' }}>
+        <span style={{ fontSize: 11.5, color: 'var(--text-mid)', whiteSpace: 'nowrap' }}>
           {sub ?? label}
         </span>
       </div>
@@ -37,7 +37,7 @@ function Stat({
 }
 
 const Sep = () => (
-  <div style={{ width: 1, height: 30, background: 'var(--stroke-soft)', flexShrink: 0 }} />
+  <div style={{ width: 1, height: 36, background: 'var(--stroke-soft)', flexShrink: 0 }} />
 )
 
 export function TopStatusBar(): JSX.Element {

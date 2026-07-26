@@ -1,9 +1,10 @@
 import { useEffect, useRef } from 'react'
 import maplibregl, { Map as MlMap, Marker } from 'maplibre-gl'
-import { buildStyle } from './mapStyle'
+import { buildStyle, MAP_LAYER_IDS } from './mapStyle'
 import { useUi } from '../../state/uiStore'
 import { useVehicle } from '../../state/vehicleStore'
 import { useMapStore } from '../../state/mapStore'
+import { isGcj02Active, toMapLngLat } from '../../util/coordTransform'
 import { C } from '../../theme/tokens'
 
 const HOME_DEFAULT: [number, number] = [113.400647, 22.889482]
@@ -24,7 +25,7 @@ export function FlightMap(): JSX.Element {
     if (!containerRef.current) return
     const map = new maplibregl.Map({
       container: containerRef.current,
-      style: buildStyle(useUi.getState().mapStyle),
+      style: buildStyle(useUi.getState().mapStyle, useUi.getState().tiandituKey),
       center: HOME_DEFAULT,
       zoom: 17,
       attributionControl: false,
@@ -91,13 +92,14 @@ export function FlightMap(): JSX.Element {
       map.remove()
       mapRef.current = null
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // 底图切换
+  // 底图切换：遍历 mapStyle.ts 里注册的全部底图图层 id，不再硬编码只有两种底图。
   useEffect(() => {
     const map = mapRef.current
     if (!map || !map.isStyleLoaded()) return
-    for (const id of ['esri-sat', 'osm'] as const) {
+    for (const id of MAP_LAYER_IDS) {
       if (map.getLayer(id)) {
         map.setLayoutProperty(id, 'visibility', id === mapStyle ? 'visible' : 'none')
       }
@@ -105,6 +107,8 @@ export function FlightMap(): JSX.Element {
   }, [mapStyle])
 
   // 遥测驱动：位置/朝向/轨迹/跟随
+  // 国内厂商底图（高德/腾讯/天地图）用的是 GCJ02 加偏坐标系，飞机的真实 WGS84 坐标必须先转换
+  // 一次再画到地图上，否则位置会偏出几百米（参考 Mission Planner 对国内地图的处理方式）。
   useEffect(() => {
     let raf = 0
     let lastHome = ''
@@ -114,7 +118,7 @@ export function FlightMap(): JSX.Element {
         const { frame, track } = useVehicle.getState()
         const hasFix = frame.gpsFix !== 'none' && frame.gpsFix !== 'no-fix' && frame.lat !== 0
         if (hasFix) {
-          const pos: [number, number] = [frame.lon, frame.lat]
+          const pos = toMapLngLat({ lat: frame.lat, lon: frame.lon })
           markerRef.current?.setLngLat(pos)
           if (rotRef.current) {
             rotRef.current.style.transform = `rotate(${(frame.yaw * 180) / Math.PI}deg)`
@@ -125,18 +129,19 @@ export function FlightMap(): JSX.Element {
         }
         // 起飞点
         if (frame.home) {
-          const key = `${frame.home.lat.toFixed(6)},${frame.home.lon.toFixed(6)}`
+          const key = `${frame.home.lat.toFixed(6)},${frame.home.lon.toFixed(6)},${mapStyle}`
           if (key !== lastHome) {
             lastHome = key
-            homeMarkerRef.current?.setLngLat([frame.home.lon, frame.home.lat]).addTo(map)
+            homeMarkerRef.current?.setLngLat(toMapLngLat({ lat: frame.home.lat, lon: frame.home.lon })).addTo(map)
           }
         }
         // 轨迹
         const src = map.getSource('track') as maplibregl.GeoJSONSource | undefined
         if (src) {
+          const coords = isGcj02Active() ? track.map(([lon, lat]) => toMapLngLat({ lat, lon })) : track
           src.setData({
             type: 'Feature',
-            geometry: { type: 'LineString', coordinates: track },
+            geometry: { type: 'LineString', coordinates: coords },
             properties: {}
           })
         }
@@ -145,13 +150,14 @@ export function FlightMap(): JSX.Element {
     }
     raf = requestAnimationFrame(loop)
     return () => cancelAnimationFrame(raf)
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mapStyle])
 
   // follow 打开时立即回中
   useEffect(() => {
     if (follow) {
       const f = useVehicle.getState().frame
-      if (f.lat !== 0) mapRef.current?.easeTo({ center: [f.lon, f.lat], duration: 300 })
+      if (f.lat !== 0) mapRef.current?.easeTo({ center: toMapLngLat({ lat: f.lat, lon: f.lon }), duration: 300 })
     }
   }, [follow])
 

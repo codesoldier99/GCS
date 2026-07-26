@@ -19,3 +19,41 @@ export function useEffectiveHome(): LL | null {
   if (telHome) return { lat: telHome.lat, lon: telHome.lon }
   return override
 }
+
+/**
+ * 规划用的"返航点"：未单独设置时与起飞点相同；设为自定义坐标或与某航点重合时，
+ * 使用对应坐标（与该航点重合的返航点会随航点移动/重排自动更新，见 missionStore.remapReturnSeq）。
+ */
+export function getEffectiveReturnPoint(): LL | null {
+  const { mission } = useMission.getState()
+  if (mission.returnPointMode === 'custom' && mission.returnLat != null && mission.returnLon != null) {
+    return { lat: mission.returnLat, lon: mission.returnLon }
+  }
+  if (mission.returnPointMode === 'waypoint' && mission.returnWaypointSeq != null) {
+    const w = mission.waypoints.find((x) => x.seq === mission.returnWaypointSeq)
+    if (w) return { lat: w.lat, lon: w.lon }
+  }
+  return getEffectiveHome()
+}
+
+/** React 组件里响应式获取 effective return point。 */
+export function useEffectiveReturnPoint(): LL | null {
+  const mode = useMission((s) => s.mission.returnPointMode)
+  const returnLat = useMission((s) => s.mission.returnLat)
+  const returnLon = useMission((s) => s.mission.returnLon)
+  const returnSeq = useMission((s) => s.mission.returnWaypointSeq)
+  const waypoints = useMission((s) => s.mission.waypoints)
+  const home = useEffectiveHome()
+  if (mode === 'custom' && returnLat != null && returnLon != null) return { lat: returnLat, lon: returnLon }
+  if (mode === 'waypoint' && returnSeq != null) {
+    const w = waypoints.find((x) => x.seq === returnSeq)
+    if (w) return { lat: w.lat, lon: w.lon }
+  }
+  return home
+}
+
+/** 当前返航点是否与起飞点不同（用于决定是否要在地图上单独画一个返航点标记）。 */
+export function useReturnDiffersFromHome(): boolean {
+  const mode = useMission((s) => s.mission.returnPointMode)
+  return mode !== 'home'
+}

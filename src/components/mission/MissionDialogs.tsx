@@ -3,7 +3,7 @@ import { useMission } from '../../state/missionStore'
 import { useVehicle } from '../../state/vehicleStore'
 import { useMapStore } from '../../state/mapStore'
 import { destination, bearing, type LL } from '../../util/geo'
-import { useEffectiveHome } from '../../util/effectiveHome'
+import { useEffectiveHome, getEffectiveReturnPoint } from '../../util/effectiveHome'
 import {
   boustrophedonTemplate,
   circleTemplate,
@@ -221,13 +221,19 @@ function TransformDialog({ onClose }: { onClose: () => void }): JSX.Element {
 
 // ---------------- 航线模板（圆形/弓形/星形） ----------------
 type TplKind = 'circle' | 'boustrophedon' | 'star'
+type TplBaseMode = 'home' | 'last' | 'center'
+
 function TemplateDialog({ onClose }: { onClose: () => void }): JSX.Element {
   const { resolve } = useBaseOptions()
   const home = useEffectiveHome()
   const map = useMapStore((s) => s.map)
+  const waypoints = useMission((s) => s.mission.waypoints)
   const replace = useMission((s) => s.replaceWaypoints)
+  const setTemplatePreview = useMapStore((s) => s.setTemplatePreview)
+  const lastWp = waypoints[waypoints.length - 1]
 
   const [kind, setKind] = useState<TplKind>('boustrophedon')
+  const [baseMode, setBaseMode] = useState<TplBaseMode>(lastWp ? 'last' : 'home')
   const [alt, setAlt] = useState(50)
   const [speed, setSpeed] = useState(5)
   const [hover, setHover] = useState(1)
@@ -238,14 +244,18 @@ function TemplateDialog({ onClose }: { onClose: () => void }): JSX.Element {
   const [width, setWidth] = useState(60)
   const [heading, setHeading] = useState(0)
   const [corner, setCorner] = useState<Corner>('tl')
-  const [genMode, setGenMode] = useState<'replace' | 'append'>('replace')
+  const [genMode, setGenMode] = useState<'replace' | 'append'>(lastWp ? 'append' : 'replace')
 
   const base = useMemo<LL>(() => {
-    if (home) return home
-    const c = map?.getCenter()
-    return c ? { lat: c.lat, lon: c.lng } : resolve('center')
+    if (baseMode === 'last' && lastWp) return { lat: lastWp.lat, lon: lastWp.lon }
+    if (baseMode === 'home' && home) return home
+    if (baseMode === 'center') {
+      const c = map?.getCenter()
+      if (c) return { lat: c.lat, lon: c.lng }
+    }
+    return home ?? resolve('center')
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [home, map])
+  }, [baseMode, home, lastWp, map])
 
   const common: TemplateCommon = { alt, speed, turnMode: turn, hoverTime: hover }
   const preview = useMemo<Waypoint[]>(() => {
@@ -254,6 +264,12 @@ function TemplateDialog({ onClose }: { onClose: () => void }): JSX.Element {
     return boustrophedonTemplate(base, length, width, count, corner, heading, common)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [kind, base, radius, count, length, width, heading, corner, alt, speed, hover, turn])
+
+  // 在真实地图上实时叠加预览，供确认后再生成（而非只看小画布）
+  useEffect(() => {
+    setTemplatePreview(preview.map((w) => ({ lat: w.lat, lon: w.lon })))
+    return () => setTemplatePreview(null)
+  }, [preview, setTemplatePreview])
 
   return (
     <FloatingPanel
@@ -294,6 +310,18 @@ function TemplateDialog({ onClose }: { onClose: () => void }): JSX.Element {
         ))}
       </div>
 
+      <Field label="基准点">
+        <Select
+          value={baseMode}
+          onChange={setBaseMode}
+          options={[
+            { value: 'home', label: '起飞点', disabled: !home },
+            { value: 'last', label: '最后航点（续接航线）', disabled: !lastWp },
+            { value: 'center', label: '地图中心' }
+          ]}
+        />
+      </Field>
+
       <div style={{ display: 'flex', gap: 14 }}>
         <div style={{ flex: 1 }}>
           {kind !== 'boustrophedon' && (
@@ -318,7 +346,7 @@ function TemplateDialog({ onClose }: { onClose: () => void }): JSX.Element {
             </>
           )}
           <Field label={kind === 'star' ? '角点数 ×2' : '航点数量'}>
-            <NumberInput value={count} step={1} min={3} onChange={setCount} />
+            <NumberInput value={count} step={1} min={3} max={LIMITS.templateCountMax} onChange={setCount} />
           </Field>
           <Field label="航向 / 起始角"><NumberInput value={heading} step={1} unit="°" onChange={setHeading} /></Field>
         </div>
@@ -477,12 +505,17 @@ function TransferTab(): JSX.Element {
     setBusy('upload'); setMsg('')
     const off = window.gcs.onMissionProgress((p) => setProg({ c: p.current, t: p.total }))
     try {
+      // 返航点若与起飞点不同（自定义坐标 / 与某航点重合），把解析好的绝对坐标一起传给主进程；
+      // 主进程侧不知道"哪个航点是返航点"这类规划语义，只需要一个最终坐标。
+      const returnPt = mission.returnPointMode !== 'home' ? getEffectiveReturnPoint() : null
       const r = await window.gcs.uploadMission(mission.waypoints, {
         finishAction: mission.finishAction,
         closed: mission.closed,
         returnAlt: mission.returnAlt,
         loopCount: mission.loopCount,
-        infiniteLoop: mission.infiniteLoop
+        infiniteLoop: mission.infiniteLoop,
+        returnLat: returnPt?.lat ?? null,
+        returnLon: returnPt?.lon ?? null
       })
       setMsg(r.error ? `上传失败：${r.error}` : `上传成功（${r.total} 项）`)
     } catch (e) {

@@ -373,12 +373,23 @@ export class RealLink {
       jump.param2 = repeats
       items.push(jump)
     }
-    if (opts.finishAction === 'rtl') items.push(mk(items.length, 20, 0, 0, 0)) // RETURN_TO_LAUNCH
-    else if (opts.finishAction === 'land' && wps.length > 0) {
+    // 返航点若指定了自定义坐标（渲染侧已解析好，见 MissionDialogs.upload()），用它替代飞控自身的
+    // HOME_POSITION：MAV_CMD_NAV_RETURN_TO_LAUNCH 本身不带坐标参数、只会飞回飞控记录的 home，
+    // 没法指定别的点，所以自定义返航点在这里改用"飞到该点 + 降落/悬停"来实现同等效果。
+    const hasCustomReturn = opts.returnLat != null && opts.returnLon != null
+    const returnPt = hasCustomReturn ? { lat: opts.returnLat as number, lon: opts.returnLon as number } : home
+    if (opts.finishAction === 'rtl') {
+      if (hasCustomReturn) {
+        items.push(mk(items.length, 16, returnPt.lat, returnPt.lon, opts.returnAlt))
+        items.push(mk(items.length, 21, returnPt.lat, returnPt.lon, 0)) // LAND
+      } else {
+        items.push(mk(items.length, 20, 0, 0, 0)) // RETURN_TO_LAUNCH
+      }
+    } else if (opts.finishAction === 'land' && wps.length > 0) {
       const wl = wps[wps.length - 1]
       items.push(mk(items.length, 21, wl.lat, wl.lon, 0)) // LAND
     } else if (opts.finishAction === 'hoverHome') {
-      items.push(mk(items.length, 17, home.lat, home.lon, opts.returnAlt)) // NAV_LOITER_UNLIM 原地悬停
+      items.push(mk(items.length, 17, returnPt.lat, returnPt.lon, opts.returnAlt)) // NAV_LOITER_UNLIM 原地悬停
     }
     return items
   }

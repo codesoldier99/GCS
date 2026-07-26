@@ -1,4 +1,5 @@
 import { destination, offsetNE, type LL } from './geo'
+import { LIMITS } from './limits'
 import type { TurnMode, Waypoint } from '@shared/mission'
 
 const D2R = Math.PI / 180
@@ -40,7 +41,7 @@ export function circleTemplate(
   c: TemplateCommon
 ): Waypoint[] {
   const out: Waypoint[] = []
-  const n = Math.max(3, Math.round(count))
+  const n = Math.min(LIMITS.templateCountMax, Math.max(3, Math.round(count)))
   for (let i = 0; i < n; i++) {
     const a = startAngle + (i * 360) / n
     out.push(wp(destination(base, a, radius), c, a))
@@ -58,7 +59,7 @@ export function starTemplate(
   innerRatio = 0.42
 ): Waypoint[] {
   const out: Waypoint[] = []
-  const p = Math.max(3, Math.round(points))
+  const p = Math.min(Math.floor(LIMITS.templateCountMax / 2), Math.max(3, Math.round(points)))
   for (let i = 0; i < p; i++) {
     const ao = startAngle + (i * 360) / p
     out.push(wp(destination(base, ao, radius), c, ao))
@@ -80,7 +81,7 @@ export function boustrophedonTemplate(
   heading: number,
   c: TemplateCommon
 ): Waypoint[] {
-  const passes = Math.max(2, Math.round(count / 2))
+  const passes = Math.min(Math.floor(LIMITS.templateCountMax / 2), Math.max(2, Math.round(count / 2)))
   const spacing = passes > 1 ? width / (passes - 1) : 0
   // 角落方向符号：地图上"上"=北，"下"=南。从上边(tl/tr)出发要向南扫描，
   // 从下边(bl/br)出发要向北扫描；从右边(tr/br)出发要向西扫描，从左边(tl/bl)出发要向东扫描。

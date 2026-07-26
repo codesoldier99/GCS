@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import maplibregl, { Marker } from 'maplibre-gl'
 import { useMapStore } from '../../state/mapStore'
 import { haversine } from '../../util/geo'
+import { toMapLngLat, fromMapLngLat } from '../../util/coordTransform'
 import { C } from '../../theme/tokens'
 
 const EMPTY: GeoJSON.Feature = { type: 'Feature', geometry: { type: 'LineString', coordinates: [] }, properties: {} }
@@ -45,16 +46,20 @@ export function MeasureTool(): null {
     }
 
     const render = (): void => {
+      // 测距点全程 WGS84（haversine 距离计算需要真实坐标），只在画到地图上时转换坐标系
       const { measurePoints } = useMapStore.getState()
-      const coords: [number, number][] = measurePoints.map((p) => [p.lon, p.lat])
       const src = map.getSource('measure') as maplibregl.GeoJSONSource | undefined
-      src?.setData({ type: 'Feature', geometry: { type: 'LineString', coordinates: coords }, properties: {} })
+      src?.setData({
+        type: 'Feature',
+        geometry: { type: 'LineString', coordinates: measurePoints.map(toMapLngLat) },
+        properties: {}
+      })
 
       while (dotsRef.current.length < measurePoints.length) {
         dotsRef.current.push(new maplibregl.Marker({ element: makeDotEl() }).setLngLat([0, 0]).addTo(map))
       }
       while (dotsRef.current.length > measurePoints.length) dotsRef.current.pop()!.remove()
-      measurePoints.forEach((p, i) => dotsRef.current[i].setLngLat([p.lon, p.lat]))
+      measurePoints.forEach((p, i) => dotsRef.current[i].setLngLat(toMapLngLat(p)))
 
       const segCount = Math.max(0, measurePoints.length - 1)
       while (labelsRef.current.length < segCount) {
@@ -65,11 +70,11 @@ export function MeasureTool(): null {
       for (let i = 0; i < segCount; i++) {
         const d = haversine(measurePoints[i], measurePoints[i + 1])
         total += d
-        const mid: [number, number] = [
-          (measurePoints[i].lon + measurePoints[i + 1].lon) / 2,
-          (measurePoints[i].lat + measurePoints[i + 1].lat) / 2
-        ]
-        labelsRef.current[i].setLngLat(mid)
+        const mid = {
+          lon: (measurePoints[i].lon + measurePoints[i + 1].lon) / 2,
+          lat: (measurePoints[i].lat + measurePoints[i + 1].lat) / 2
+        }
+        labelsRef.current[i].setLngLat(toMapLngLat(mid))
         labelsRef.current[i].getElement().textContent = `${d.toFixed(1)}m`
       }
 
@@ -78,7 +83,7 @@ export function MeasureTool(): null {
           totalLabelRef.current = new maplibregl.Marker({ element: makeLabelEl() }).addTo(map)
         }
         const last = measurePoints[measurePoints.length - 1]
-        totalLabelRef.current.setLngLat([last.lon, last.lat])
+        totalLabelRef.current.setLngLat(toMapLngLat(last))
         totalLabelRef.current.getElement().textContent = `合计 ${total.toFixed(1)}m`
       } else {
         totalLabelRef.current?.remove()
@@ -89,7 +94,7 @@ export function MeasureTool(): null {
     const unsub = useMapStore.subscribe(render)
     const onClick = (e: maplibregl.MapMouseEvent): void => {
       const st = useMapStore.getState()
-      if (st.measureMode) st.addMeasurePoint({ lat: e.lngLat.lat, lon: e.lngLat.lng })
+      if (st.measureMode) st.addMeasurePoint(fromMapLngLat(e.lngLat.lat, e.lngLat.lng))
     }
     const onKey = (e: KeyboardEvent): void => {
       if (e.key === 'Escape') useMapStore.getState().clearMeasure()

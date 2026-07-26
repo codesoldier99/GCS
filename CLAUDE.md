@@ -142,7 +142,19 @@ i-Cockpit 美学：深邃近黑蓝底 + 冰蓝荧光主色 + 铬银描边 + 标�
 - **右侧工具栏溢出**（`WaypointToolbar`/`MapToolbar`）改为 `maxHeight: calc(100% - 28px)` + `overflow-y: auto`，小窗口下可滚动到达全部按钮。
 - **模拟飞行界面**现在也挂载航线编辑 UI（`FlightView.tsx`，此前只有"航线飞行"模式能加点画航线）。
 
-## 10. 动效与声音层（未来感 / 科技感改造）
+## 10. 学员测试修复轮二（`docs/地面站修改建议2.pdf` 15+1 项）
+
+- **起飞点/返航点参数化**：`shared/mission.ts` 新增 `returnPointMode`(`home`/`custom`/`waypoint`)、`returnLat/returnLon/returnWaypointSeq`；`RoutePanel.tsx` 新增 `HomeEditor`（直接编辑坐标 / 相对某航点方位角+距离定位）与 `ReturnEditor`（与起飞点相同/自定义/与某航点重合 + 返航高度速度），`RouteSettings` 顶部加"起飞点"/"返航点"入口按钮；`missionStore.ts` 的 `remapReturnSeq()` 保证删除/重排/反序/插入航点后 `returnWaypointSeq` 仍指向正确的点；`rotate`/`translate` 联动变换 `homeOverride` 与自定义返航点坐标。真机侧 `RealLink.ts` 在自定义返航点存在时用 `NAV_WAYPOINT+NAV_LAND` 合成代替 `RETURN_TO_LAUNCH`（该指令无坐标参数）；仿真侧 `Simulator.ts` 用 `usingMissionReturn` 标志区分"任务完成自动返航"（飞向 `missionReturnPoint`）与"手动切 RTL/点返航按钮"（飞回真实 `home`），避免两条路径互相污染。
+- **右键菜单**：航点右键新增"设为起飞点"/"设为返航点"（`WaypointContextMenu.tsx`）；地图空白处右键新增"添加航点/设置起飞点于此/设置返航点于此"（新增 `MapContextMenu.tsx`）。
+- **键盘快捷键**（`MissionOverlay.tsx` 的 `onKeyDown`）：Ctrl/Cmd+Z 撤销、Ctrl/Cmd+Shift+Z 或 Ctrl/Cmd+Y 重做、Delete/Backspace 删除选中航点、Esc 退出各种模式/关闭菜单；`isEditableTarget()` 守卫避免在输入框打字时误触发。
+- **工具栏重叠修复**：`MapToolbar.tsx` 拆出裸按钮组 `MapTools()`，合并进 `WaypointToolbar.tsx` 同一根竖列（`FlightView.tsx` 航线模式不再重复渲染 `MapToolbar`），彻底消除两个各自浮动工具栏在小窗口下互相盖住按钮点不到的问题。
+- **坐标/数值输入**：`NumberInput` 改用 `useBufferedNumber()`（本地文本缓冲，blur 时才 clamp+提交），修复原生 `<input type=number>` 打字中途被强制归零导致速度等字段"改不了"的根因；新增 `.m-stepper` 自绘 +/- 按钮替代过小的原生步进箭头；经纬度十进制统一 `decimals=7`。
+- **高度上限**：`util/limits.ts` 的 `altMax` 从 120 提到 1000（满足 300/500m 考题），120m 以上在 `RoutePanel.altHint()` 给出监管限高提醒而非硬阻断。
+- **航线模板**：`TemplateDialog` 新增"基准点"选择（起飞点/最后航点续接/地图中心，默认已有航点时自动选"最后航点"）；新增 `TemplatePreviewOverlay.tsx` 把生成前的预览实时叠加画在真实地图上（`mapStore.templatePreview` + GeoJSON 虚线/落点图层），而不只是小画布预览；`templateCountMax=360` 上限同时加在 UI（`NumberInput max`）与 `missionTemplates.ts` 各生成函数内部（防御性 clamp）。
+- **地图供应商 + GCJ02 纠偏**：`uiStore.ts` 的 `MAP_PROVIDERS` 扩到 Esri/OSM/高德卫星/高德矢量/腾讯/天地图(需 Key，`tiandituKey` 存 localStorage)；新增 `util/coordTransform.ts`（`wgs84ToGcj02`/`gcj02ToWgs84` + `isGcj02Active()`/`toMapLngLat()`/`fromMapLngLat()`），业务数据全程 WGS84，只在"设置地图坐标"与"读取地图点击"两个边界转换，`FlightMap`/`MissionOverlay`/`MeasureTool`/`CaacOverlay`/`TemplatePreviewOverlay` 统一走这层。未接入百度地图——其 BD09MC 瓦片金字塔与标准 XYZ 光栅源不兼容。
+- **户外大字体**：`--bar-h` 58→66px，`TopStatusBar`/`BottomInstrumentBar` 的读数字号、图标尺寸、分隔线高度整体上调，提升强光/远距离可读性。
+
+## 11. 动效与声音层（未来感 / 科技感改造）
 
 > 运行环境是 Electron（固定 Chromium 130），故直接使用 View Transitions、CSS `@property`
 > 等新特性，**不需要兼容分支或 polyfill**。
@@ -172,7 +184,7 @@ i-Cockpit 美学：深邃近黑蓝底 + 冰蓝荧光主色 + 铬银描边 + 标�
   3. **教室场景**——界面音效必须能一键全局静音。
   4. **CSP**——`index.html` 是 `default-src 'self'`，字体/图片/音频一律本地打包，不引 CDN。
 
-## 11. 使用手册与配图
+## 12. 使用手册与配图
 
 - `docs/manual.html` → `docs/make-manual.cjs` 渲染为 `docs/中影智能-使用手册.pdf`。
 - **配图统一由 `docs/make-shots.cjs` 生成**，不要手工截图：

@@ -81,6 +81,15 @@ export class Simulator {
   private missionLoopCount = 1
   private missionInfiniteLoop = false
   private missionLoopsDone = 0
+  /** 任务自定义返航点（渲染侧已解析好的绝对坐标；null=使用真实 home）。 */
+  private missionReturnPoint: { lat: number; lon: number } | null = null
+  /** 当前是否处于"任务完成后自动返航/悬停"这条路径——只有这种情况才该飞向
+   *  missionReturnPoint；手动点"返航"按钮或切 RTL 模式必须飞回真实 home，两者不能混用。 */
+  private usingMissionReturn = false
+
+  private returnTarget(): { lat: number; lon: number } {
+    return this.usingMissionReturn && this.missionReturnPoint ? this.missionReturnPoint : this.home
+  }
 
   private fig: { center: { lat: number; lon: number }; r: number; bAB: number; alt: number; u: number } | null =
     null
@@ -140,6 +149,7 @@ export class Simulator {
     this.missionLoopCount = opts.loopCount
     this.missionInfiniteLoop = opts.infiniteLoop
     this.missionLoopsDone = 0
+    this.missionReturnPoint = opts.returnLat != null && opts.returnLon != null ? { lat: opts.returnLat, lon: opts.returnLon } : null
     const total = wps.length
     for (let i = 1; i <= total; i++) {
       onProgress({ phase: 'upload', current: i, total, done: i === total })
@@ -188,7 +198,10 @@ export class Simulator {
         break
       case 'setMode':
         this.s.modeId = cmd.modeId
-        if (cmd.modeId === 6) this.s.phase = 'rtl'
+        if (cmd.modeId === 6) {
+          this.usingMissionReturn = false // 手动切 RTL 模式：飞回真实 home，不是任务里定义的返航点
+          this.s.phase = 'rtl'
+        }
         if (cmd.modeId === 9) this.s.phase = 'land'
         if (cmd.modeId === 3 && this.mission.length > 0) {
           // 自动模式：从当前高度起飞并顺序飞航点
@@ -211,6 +224,7 @@ export class Simulator {
         this.s.phase = 'takeoff'
         break
       case 'rtl':
+        this.usingMissionReturn = false // 手动"返航"按钮：飞回真实 home
         this.s.phase = 'rtl'
         this.s.modeId = 6
         break
@@ -239,6 +253,7 @@ export class Simulator {
           this.s.flightTime = 0
         } else {
           this.fig = null
+          this.usingMissionReturn = false
           this.s.phase = 'rtl'
           this.s.modeId = 6
         }
@@ -252,6 +267,7 @@ export class Simulator {
           this.s.modeId = 5
           this.s.flightTime = 0
         } else {
+          this.usingMissionReturn = false
           this.s.phase = 'rtl'
           this.s.modeId = 6
         }
@@ -340,7 +356,8 @@ export class Simulator {
       case 'mission': {
         const wp = this.mission[this.missionIdx]
         if (!wp) {
-          // 航线完成 → 完成动作
+          // 航线完成 → 完成动作。此处进入 rtl/hoverHome 才应飞向任务自定义的返航点。
+          this.usingMissionReturn = true
           if (this.finishAction === 'rtl') {
             s.phase = 'rtl'
             s.modeId = 6
@@ -350,6 +367,7 @@ export class Simulator {
           } else if (this.finishAction === 'hoverHome') {
             s.phase = 'hoverHome'
           } else {
+            this.usingMissionReturn = false
             s.vN = s.vE = 0
             s.roll = 0
           }
@@ -391,15 +409,16 @@ export class Simulator {
       }
 
       case 'hoverHome': {
-        // 返回起飞点后原地无限悬停（不降落/不切RTL模式）
+        // 返回起飞点（或任务自定义返航点）后原地无限悬停（不降落/不切RTL模式）
+        const dest = this.returnTarget()
         const target = 30
         if (s.relAlt < target - 0.5) {
           s.relAlt += climbRate * dt
           s.vD = -climbRate
         }
-        const d = haversine({ lat: s.lat, lon: s.lon }, this.home)
+        const d = haversine({ lat: s.lat, lon: s.lon }, dest)
         if (d > 1.5) {
-          const brg = bearingDeg({ lat: s.lat, lon: s.lon }, this.home)
+          const brg = bearingDeg({ lat: s.lat, lon: s.lon }, dest)
           s.yaw = (brg * Math.PI) / 180
           s.vN = Math.cos(s.yaw) * cruiseSpeed
           s.vE = Math.sin(s.yaw) * cruiseSpeed
@@ -438,17 +457,18 @@ export class Simulator {
       }
 
       case 'rtl': {
-        // 爬到返航高度后飞回 home 再降落
+        // 爬到返航高度后飞回 home（或任务自定义返航点）再降落
+        const dest = this.returnTarget()
         const target = 30
         if (s.relAlt < target - 0.5) {
           s.relAlt += climbRate * dt
           s.vD = -climbRate
         }
-        const d = haversine({ lat: s.lat, lon: s.lon }, this.home)
+        const d = haversine({ lat: s.lat, lon: s.lon }, dest)
         if (d > 1.5) {
           const brg = Math.atan2(
-            metersToLon(1, s.lat) === 0 ? 0 : (this.home.lon - s.lon),
-            this.home.lat - s.lat
+            metersToLon(1, s.lat) === 0 ? 0 : (dest.lon - s.lon),
+            dest.lat - s.lat
           )
           s.yaw = brg
           s.vN = Math.cos(brg) * cruiseSpeed

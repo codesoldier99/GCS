@@ -106,6 +106,9 @@ export interface MissionUploadOptions {
   returnAlt: number
   loopCount: number
   infiniteLoop: boolean
+  /** 已在渲染侧解析好的返航点坐标；null 表示使用飞控自身记录的 HOME_POSITION。 */
+  returnLat: number | null
+  returnLon: number | null
 }
 
 /** window.gcs 的类型（preload 暴露） */

@@ -17,6 +17,9 @@ export interface Waypoint {
 export type FinishAction = 'hover' | 'rtl' | 'land' | 'hoverHome' // 原地悬停 / 返航 / 降落 / 返回起飞点悬停
 export type ClimbType = 'vertical' | 'inclined' // 垂直爬升 / 斜线爬升
 
+/** 返航点来源：与起飞点相同（默认）/ 自定义坐标 / 与某航点重合（跟随该航点移动）。 */
+export type ReturnPointMode = 'home' | 'custom' | 'waypoint'
+
 export interface Mission {
   name: string
   waypoints: Waypoint[]
@@ -29,6 +32,10 @@ export interface Mission {
   climbType: ClimbType
   returnAlt: number
   returnSpeed: number
+  returnPointMode: ReturnPointMode
+  returnLat: number | null // returnPointMode==='custom' 时生效
+  returnLon: number | null
+  returnWaypointSeq: number | null // returnPointMode==='waypoint' 时生效
 }
 
 export function emptyMission(name = '新建航点任务'): Mission {
@@ -43,6 +50,10 @@ export function emptyMission(name = '新建航点任务'): Mission {
     startIndex: 1,
     climbType: 'vertical',
     returnAlt: 30,
-    returnSpeed: 10
+    returnSpeed: 10,
+    returnPointMode: 'home',
+    returnLat: null,
+    returnLon: null,
+    returnWaypointSeq: null
   }
 }

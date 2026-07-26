@@ -4,6 +4,7 @@ import type { Map as MlMap } from 'maplibre-gl'
 import { useMapStore } from '../../state/mapStore'
 import { useCaac } from '../../state/caacStore'
 import { circlePath, figure8FromPylons, figure8Path } from '../../util/figure8'
+import { toMapLngLat, fromMapLngLat } from '../../util/coordTransform'
 import { C } from '../../theme/tokens'
 
 const EMPTY_FC: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] }
@@ -45,8 +46,9 @@ export function CaacOverlay(): null {
     const unsub = useCaac.subscribe(render)
     const onClick = (e: maplibregl.MapMouseEvent): void => {
       const st = useCaac.getState()
-      if (st.placeMode === 'a') st.setPylon('a', { lat: e.lngLat.lat, lon: e.lngLat.lng })
-      else if (st.placeMode === 'b') st.setPylon('b', { lat: e.lngLat.lat, lon: e.lngLat.lng })
+      const ll = fromMapLngLat(e.lngLat.lat, e.lngLat.lng)
+      if (st.placeMode === 'a') st.setPylon('a', ll)
+      else if (st.placeMode === 'b') st.setPylon('b', ll)
     }
     map.on('click', onClick)
     render()
@@ -93,13 +95,13 @@ function rebuild(map: MlMap, markers: Marker[]): void {
       features.push({
         type: 'Feature',
         properties: { kind: 'circle' },
-        geometry: { type: 'LineString', coordinates: circlePath(c, f.radius).map((p) => [p.lon, p.lat]) }
+        geometry: { type: 'LineString', coordinates: circlePath(c, f.radius).map(toMapLngLat) }
       })
     }
     features.push({
       type: 'Feature',
       properties: { kind: 'fig' },
-      geometry: { type: 'LineString', coordinates: figure8Path(f).map((p) => [p.lon, p.lat]) }
+      geometry: { type: 'LineString', coordinates: figure8Path(f).map(toMapLngLat) }
     })
   }
   const src = map.getSource('caac') as maplibregl.GeoJSONSource | undefined
@@ -114,7 +116,7 @@ function rebuild(map: MlMap, markers: Marker[]): void {
     markers.push(new maplibregl.Marker({ element: pylonEl('?') }).setLngLat([0, 0]).addTo(map))
   }
   wanted.forEach((w, i) => {
-    markers[i].setLngLat([w.ll.lon, w.ll.lat])
+    markers[i].setLngLat(toMapLngLat(w.ll))
     const span = markers[i].getElement().querySelector('span')
     if (span) span.textContent = w.label
   })

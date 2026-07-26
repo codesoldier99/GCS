@@ -8,8 +8,8 @@ import { Icon } from '../Icon'
 
 function Col({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0 }}>
-      <div className="label" style={{ color: 'var(--primary)' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 9, minWidth: 0 }}>
+      <div className="label" style={{ color: 'var(--primary)', fontSize: 12 }}>
         {title}
       </div>
       {children}
@@ -24,14 +24,14 @@ function Row({ k, v, unit, color }: { k: string; v: string; unit?: string; color
         display: 'flex',
         justifyContent: 'space-between',
         gap: 16,
-        fontSize: 12,
+        fontSize: 14,
         whiteSpace: 'nowrap'
       }}
     >
-      <span style={{ color: 'var(--text-lo)' }}>{k}</span>
-      <span className="readout" style={{ color: color ?? 'var(--text-hi)' }}>
+      <span style={{ color: 'var(--text-mid)' }}>{k}</span>
+      <span className="readout" style={{ color: color ?? 'var(--text-hi)', fontWeight: 700 }}>
         {v}
-        {unit && <span style={{ color: 'var(--text-lo)', fontSize: 10, marginLeft: 2 }}>{unit}</span>}
+        {unit && <span style={{ color: 'var(--text-mid)', fontSize: 11.5, marginLeft: 2 }}>{unit}</span>}
       </span>
     </div>
   )
@@ -86,10 +86,10 @@ export function BottomInstrumentBar(): JSX.Element {
           style={{
             pointerEvents: 'auto',
             display: 'grid',
-            gridTemplateColumns: 'minmax(190px,1.1fr) 128px 138px auto 128px 138px 150px',
+            gridTemplateColumns: 'minmax(200px,1.1fr) 138px 148px auto 138px 148px 160px',
             gap: 26,
             alignItems: 'center',
-            padding: '14px 26px',
+            padding: '15px 26px',
             background: 'linear-gradient(180deg, rgba(10,15,26,0.82), rgba(8,11,18,0.94))',
             borderTop: '1px solid var(--stroke)',
             backdropFilter: 'blur(10px)'

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Icon, type IconName } from '../Icon'
 import { useMission } from '../../state/missionStore'
 import { ConfirmDialog } from '../ConfirmDialog'
+import { MapTools } from '../layout/MapToolbar'
 
 function Tool({
   icon,
@@ -83,8 +84,8 @@ export function WaypointToolbar(): JSX.Element {
         icon="trash"
         title="删除当前航点"
         danger
-        disabled={selected == null}
-        onClick={() => selected != null && deleteWaypoint(selected)}
+        disabled={typeof selected !== 'number'}
+        onClick={() => typeof selected === 'number' && deleteWaypoint(selected)}
       />
       <Tool icon="eraser" title="清空所有航点" danger disabled={count === 0} onClick={() => setConfirmClear(true)} />
       <Tool
@@ -97,6 +98,8 @@ export function WaypointToolbar(): JSX.Element {
       <Tool icon="undo" title="撤销" disabled={!canUndo} onClick={undo} />
       <Tool icon="redo" title="重做" disabled={!canRedo} onClick={redo} />
       <Tool icon="list" title="航点列表 / 上传下载" onClick={() => openDialog('list')} />
+      <div style={{ height: 4 }} />
+      <MapTools />
 
       {confirmClear && (
         <ConfirmDialog
